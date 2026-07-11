@@ -267,9 +267,17 @@ let loading = false; // suppress autosave while applying a loaded project
 
 const nameEl = document.getElementById("project-name")!;
 
+// Ids that have been committed to the store. A brand-new project stays an
+// in-memory draft (a tab, but not in the library) until it's actually edited.
+const persistedIds = new Set<string>();
+
 function setName(name: string): void {
   current.name = name;
   nameEl.textContent = name;
+}
+
+function isDraft(): boolean {
+  return workspace.getAllBlocks(false).length === 0 && !detached;
 }
 
 // autosave() is called by regenerate() on every workspace change, and on flush.
@@ -281,8 +289,11 @@ function autosave(): void {
   current.editedCode = detached ? codeEdit.value : undefined;
   current.view = { scale: workspace.getScale(), x: workspace.scrollX, y: workspace.scrollY };
   current.updatedAt = Date.now();
-  void projectStore.put(current);
   localStorage.setItem(LAST_OPEN_KEY, current.id);
+  // Don't write empty, never-saved drafts to the library.
+  if (isDraft() && !persistedIds.has(current.id)) return;
+  persistedIds.add(current.id);
+  void projectStore.put(current);
 }
 
 function applyProject(rec: ProjectRecord): void {
@@ -415,7 +426,10 @@ function closeTab(id: string): void {
 const library = initLibrary({
   onOpen: async (id) => {
     const rec = await projectStore.get(id);
-    if (rec) openProject(rec);
+    if (rec) {
+      persistedIds.add(rec.id); // came from the store, so it's already saved
+      openProject(rec);
+    }
   },
   currentId: () => current.id,
 });
@@ -433,6 +447,7 @@ nameEl.addEventListener("click", () => {
   const name = prompt("Project name:", current.name);
   if (name && name.trim()) {
     setName(name.trim());
+    persistedIds.add(current.id); // naming a project is intent to keep it
     renderTabs();
     autosave();
   }
@@ -448,7 +463,10 @@ async function boot(): Promise<void> {
   }
   for (const id of ids) {
     const rec = await projectStore.get(id);
-    if (rec) openTabs.push(rec);
+    if (rec) {
+      persistedIds.add(rec.id); // restored from the store => already saved
+      openTabs.push(rec);
+    }
   }
   if (openTabs.length === 0) openTabs.push(newRecord("Untitled", DEFAULT_BOARD));
   const activeId = localStorage.getItem(LAST_OPEN_KEY);
