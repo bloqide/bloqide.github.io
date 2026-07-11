@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Microblock — MicroPython Block IDE</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Top menu -->
+      <header id="menubar">
+        <span class="brand">◼ Microblock</span>
+        <div class="group">
+          <button id="project-name" class="project-name" title="Click to rename">Untitled</button>
+          <button id="btn-new" title="New project"><i class="fa-solid fa-file"></i> New</button>
+          <button id="btn-open" title="Open project"><i class="fa-solid fa-folder-open"></i> Open</button>
+          <button id="btn-export" title="Export .mbproj"><i class="fa-solid fa-download"></i> Export</button>
+        </div>
+        <div class="group">
+          <button id="btn-undo" title="Undo (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
+          <button id="btn-redo" title="Redo (Ctrl+Shift+Z)"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+        <span class="board-label" id="board-label"></span>
+        <div class="spacer"></div>
+        <div class="group">
+          <button data-view="blocks" class="view-btn active">Blocks</button>
+          <button data-view="split" class="view-btn">Split</button>
+          <button data-view="code" class="view-btn">Code</button>
+        </div>
+        <div class="group">
+          <button id="btn-connect" title="Connect board"><i class="fa-solid fa-plug"></i> Connect</button>
+          <button id="btn-run" disabled title="Run in RAM"><i class="fa-solid fa-play"></i> Run</button>
+          <button id="btn-save-board" disabled title="Write main.py to flash">
+            <i class="fa-solid fa-hard-drive"></i> Save to board
+          </button>
+          <button id="btn-stop" disabled title="Stop"><i class="fa-solid fa-stop"></i></button>
+          <button id="btn-terminal" title="Toggle terminal"><i class="fa-solid fa-terminal"></i></button>
+        </div>
+      </header>
+
+      <!-- Main work area -->
+      <main id="work">
+        <div id="blockly" class="pane"></div>
+        <div id="code-pane" class="pane hidden">
+          <div class="code-toolbar">
+            <label><input type="checkbox" id="detach-toggle" /> Edit code (detach)</label>
+            <button id="revert-blocks" class="hidden">↺ Revert to blocks</button>
+            <span class="mode-badge" id="mode-badge"></span>
+          </div>
+          <div id="code-view"></div>
+          <textarea id="code-edit" class="hidden" spellcheck="false"></textarea>
+        </div>
+      </main>
+
+      <!-- Terminal drawer (right) -->
+      <aside id="terminal-drawer" class="hidden">
+        <div class="drawer-head">
+          <span>Serial terminal</span>
+          <button id="btn-terminal-close">×</button>
+        </div>
+        <div id="terminal"></div>
+      </aside>
+    </div>
+
+    <!-- Project library -->
+    <dialog id="library-dialog">
+      <div class="dialog-head">
+        <strong>Projects</strong>
+        <button data-act="close">×</button>
+      </div>
+      <div class="lib-list"></div>
+      <div class="dialog-foot">
+        <button data-act="import">Import .mbproj…</button>
+        <button data-act="close">Close</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

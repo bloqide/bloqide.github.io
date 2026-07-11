@@ -1,0 +1,197 @@
+import type { Board } from "../core/types";
+
+// Web Serial + MicroPython raw-REPL driver.
+//
+// - connect():  user-gesture port pick + open, then a single read loop feeds the
+//               terminal and buffers bytes for command responses.
+// - run():      raw REPL -> paste program -> Ctrl-D -> execute in RAM.
+// - saveToBoard(): write program as /main.py, then soft-reboot so it runs on boot.
+// - syncLibraries(): upload only changed device files (session hash cache).
+//
+// NB: this implements plain raw REPL (no raw-paste flow control). Fine for the
+// modest programs the block editor produces; large uploads would want raw-paste.
+
+const CTRL_A = "\x01";
+const CTRL_B = "\x02";
+const CTRL_C = "\x03";
+const CTRL_D = "\x04";
+
+export interface SerialCallbacks {
+  onData: (text: string) => void;
+  onStatus: (connected: boolean) => void;
+}
+
+export class SerialService {
+  private port: SerialPort | null = null;
+  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  private encoder = new TextEncoder();
+  private decoder = new TextDecoder();
+  private rx = ""; // rolling receive buffer for command parsing
+  private forwardToTerminal = true;
+  private libHashes = new Map<string, string>();
+
+  constructor(private cb: SerialCallbacks) {}
+
+  get connected(): boolean {
+    return this.port !== null;
+  }
+
+  static get supported(): boolean {
+    return typeof navigator !== "undefined" && "serial" in navigator;
+  }
+
+  async connect(board: Board): Promise<void> {
+    if (!SerialService.supported) throw new Error("Web Serial not supported (use Chrome/Edge).");
+    this.port = await navigator.serial.requestPort();
+    await this.port.open({ baudRate: board.connection.baud });
+    if (board.connection.resetOnConnect && this.port.setSignals) {
+      await this.port.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await this.port.setSignals({ dataTerminalReady: true, requestToSend: false });
+    }
+    this.writer = this.port.writable!.getWriter();
+    this.libHashes.clear();
+    this.startReadLoop();
+    this.cb.onStatus(true);
+    // Drop into a clean REPL prompt.
+    await this.write(CTRL_C + CTRL_C);
+  }
+
+  async disconnect(): Promise<void> {
+    try {
+      await this.reader?.cancel();
+      this.writer?.releaseLock();
+      await this.port?.close();
+    } finally {
+      this.port = null;
+      this.writer = null;
+      this.reader = null;
+      this.cb.onStatus(false);
+    }
+  }
+
+  private async startReadLoop(): Promise<void> {
+    if (!this.port?.readable) return;
+    this.reader = this.port.readable.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await this.reader.read();
+        if (done) break;
+        const text = this.decoder.decode(value, { stream: true });
+        this.rx += text;
+        if (this.rx.length > 8192) this.rx = this.rx.slice(-4096);
+        if (this.forwardToTerminal) this.cb.onData(text);
+      }
+    } catch {
+      /* reader cancelled on disconnect */
+    }
+  }
+
+  private async write(s: string): Promise<void> {
+    if (!this.writer) throw new Error("Not connected");
+    await this.writer.write(this.encoder.encode(s));
+  }
+
+  /** Wait until `token` appears in the receive buffer (or timeout). */
+  private async waitFor(token: string, timeoutMs = 4000): Promise<void> {
+    const start = performance.now();
+    while (!this.rx.includes(token)) {
+      if (performance.now() - start > timeoutMs) throw new Error(`Timeout waiting for "${token}"`);
+      await delay(15);
+    }
+  }
+
+  /** Send code through raw REPL and execute it. */
+  private async execRaw(code: string): Promise<void> {
+    await this.write(CTRL_C + CTRL_C); // interrupt anything running
+    this.rx = "";
+    await this.write(CTRL_A); // enter raw REPL
+    await this.waitFor("raw REPL");
+    this.rx = "";
+    await this.write(code);
+    await this.write(CTRL_D); // execute
+    await this.waitFor("OK"); // compiled ok
+    await this.write(CTRL_B); // back to friendly REPL
+  }
+
+  /** Run the program now (RAM only; flash main.py untouched). */
+  async run(code: string): Promise<void> {
+    this.cb.onData("\r\n[run] uploading & executing…\r\n");
+    await this.execRaw(code);
+  }
+
+  /** Persist the program as /main.py and soft-reboot so it runs on power-up. */
+  async saveToBoard(code: string): Promise<void> {
+    this.cb.onData("\r\n[save] writing main.py…\r\n");
+    await this.writeFile("/main.py", code);
+    await this.write(CTRL_D); // soft reboot -> runs main.py
+  }
+
+  async stop(): Promise<void> {
+    await this.write(CTRL_C + CTRL_C);
+    this.cb.onData("\r\n[stopped]\r\n");
+  }
+
+  /** Forward an interactive keystroke to the board's REPL. */
+  async sendKey(data: string): Promise<void> {
+    if (this.connected) await this.write(data);
+  }
+
+  /**
+   * Upload only device files whose content changed since the last upload this
+   * session. Real sync would read a device-side manifest; the session cache is
+   * enough to keep repeated Runs fast.
+   */
+  async syncLibraries(files: { dest: string; content: string }[]): Promise<void> {
+    for (const f of files) {
+      const h = hash(f.content);
+      if (this.libHashes.get(f.dest) === h) continue;
+      this.cb.onData(`[sync] ${f.dest}\r\n`);
+      await this.writeFile(f.dest, f.content);
+      this.libHashes.set(f.dest, h);
+    }
+  }
+
+  /** Write a text file to the device filesystem via raw REPL. */
+  private async writeFile(path: string, content: string): Promise<void> {
+    const dir = path.slice(0, path.lastIndexOf("/"));
+    const b64 = btoa(unescape(encodeURIComponent(content)));
+    const script = [
+      "import ubinascii, uos",
+      dir && dir !== "" ? mkdirs(dir) : "",
+      `_f = open(${py(path)}, 'wb')`,
+      `_f.write(ubinascii.a2b_base64(${py(b64)}))`,
+      "_f.close()",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await this.execRaw(script);
+  }
+}
+
+// Build code that creates intermediate directories, ignoring "already exists".
+function mkdirs(dir: string): string {
+  const parts = dir.split("/").filter(Boolean);
+  let acc = "";
+  const lines: string[] = [];
+  for (const p of parts) {
+    acc += "/" + p;
+    lines.push(`try:\n uos.mkdir(${py(acc)})\nexcept OSError:\n pass`);
+  }
+  return lines.join("\n");
+}
+
+function py(s: string): string {
+  return "'" + s.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Small non-cryptographic content hash for change detection.
+function hash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return h.toString(16);
+}

@@ -1,0 +1,53 @@
+{
+  "id": "esp32-c3",
+  "name": "ESP32-C3",
+  "meta": { "vendor": "Espressif", "mcu": "esp32c3" },
+  "icon": { "preset": "esp32" },
+
+  "connection": {
+    "baud": 115200,
+    "replMode": "raw-paste",
+    "resetOnConnect": false,
+    "eol": "\r\n"
+  },
+
+  "runtime": {
+    "dialect": "machine",
+    "imports": ["from machine import Pin"]
+  },
+
+  "pins": {
+    "digital": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 19, 20, 21],
+    "analog": [0, 1, 2, 3, 4],
+    "pwm": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 19],
+    "dac": [],
+    "touch": [],
+    "aliases": { "LED": 8 }
+  },
+
+  "buses": {
+    "i2c": [{ "id": 0, "scl": 6, "sda": 5, "freq": 400000 }],
+    "spi": [{ "id": 1, "sck": 4, "mosi": 6, "miso": 5 }],
+    "uart": [{ "id": 1, "tx": 21, "rx": 20 }]
+  },
+
+  "constraints": {
+    "adcBits": 12,
+    "adcVref": 3.3,
+    "pwmFreqHz": [1, 40000000],
+    "logicVoltage": 3.3
+  },
+
+  "onboard": [{ "type": "led", "pin": 8, "name": "onboard LED (GPIO8)" }],
+
+  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi"],
+  "plugins": ["core-control", "core-gpio"],
+
+  "libraries": [],
+  "examples": [
+    { "id": "blink", "name": "Blink (simple)", "file": "examples/esp32-c3/blink.mbproj" },
+    { "id": "two-stacks", "name": "Two blinkers (scheduler)", "file": "examples/esp32-c3/two-stacks.mbproj" }
+  ],
+
+  "overrides": {}
+}

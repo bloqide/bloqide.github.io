@@ -1,0 +1,67 @@
+{
+  "board": "esp32-c3",
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "when_started",
+        "x": 40,
+        "y": 40,
+        "next": {
+          "block": {
+            "type": "forever",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "gpio_toggle_led",
+                  "next": {
+                    "block": {
+                      "type": "wait_ms",
+                      "fields": { "MS": 500 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "when_started",
+        "x": 360,
+        "y": 40,
+        "next": {
+          "block": {
+            "type": "forever",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "gpio_write",
+                  "fields": { "PIN": "2", "VAL": "1" },
+                  "next": {
+                    "block": {
+                      "type": "wait_ms",
+                      "fields": { "MS": 120 },
+                      "next": {
+                        "block": {
+                          "type": "gpio_write",
+                          "fields": { "PIN": "2", "VAL": "0" },
+                          "next": {
+                            "block": {
+                              "type": "wait_ms",
+                              "fields": { "MS": 120 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

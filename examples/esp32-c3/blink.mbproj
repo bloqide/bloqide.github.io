@@ -1,0 +1,31 @@
+{
+  "board": "esp32-c3",
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "when_started",
+        "x": 40,
+        "y": 40,
+        "next": {
+          "block": {
+            "type": "forever",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "gpio_toggle_led",
+                  "next": {
+                    "block": {
+                      "type": "wait_ms",
+                      "fields": { "MS": 500 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
