@@ -21,51 +21,91 @@ export interface SerialCallbacks {
   onStatus: (connected: boolean) => void;
 }
 
+// Friendly names for common USB-serial vendors (Web Serial exposes no port path).
+const VENDORS: Record<number, string> = {
+  0x303a: "Espressif",
+  0x2e8a: "Raspberry Pi",
+  0x10c4: "CP210x",
+  0x1a86: "CH34x",
+  0x0403: "FTDI",
+  0x2341: "Arduino",
+};
+
 export class SerialService {
   private port: SerialPort | null = null;
+  private board: Board | null = null; // remembered so we can reopen after close
+  private open = false;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private encoder = new TextEncoder();
   private decoder = new TextDecoder();
   private rx = ""; // rolling receive buffer for command parsing
+  private buffer = ""; // full-ish scrollback for reprint
   private forwardToTerminal = true;
   private libHashes = new Map<string, string>();
 
   constructor(private cb: SerialCallbacks) {}
 
   get connected(): boolean {
-    return this.port !== null;
+    return this.open;
   }
 
   static get supported(): boolean {
     return typeof navigator !== "undefined" && "serial" in navigator;
   }
 
-  async connect(board: Board): Promise<void> {
-    if (!SerialService.supported) throw new Error("Web Serial not supported (use Chrome/Edge).");
-    this.port = await navigator.serial.requestPort();
-    await this.port.open({ baudRate: board.connection.baud });
-    if (board.connection.resetOnConnect && this.port.setSignals) {
-      await this.port.setSignals({ dataTerminalReady: false, requestToSend: true });
-      await this.port.setSignals({ dataTerminalReady: true, requestToSend: false });
-    }
-    this.writer = this.port.writable!.getWriter();
-    this.libHashes.clear();
-    this.startReadLoop();
-    this.cb.onStatus(true);
-    // Drop into a clean REPL prompt.
-    await this.write(CTRL_C + CTRL_C);
+  /** Known vendor name for this port, if the USB vendor id is recognised. */
+  vendorName(): string | undefined {
+    const vid = this.port?.getInfo().usbVendorId;
+    return vid != null ? VENDORS[vid] : undefined;
   }
 
-  async disconnect(): Promise<void> {
+  getBuffer(): string {
+    return this.buffer;
+  }
+
+  /** Pick a port (user gesture) and open it. */
+  async attach(board: Board): Promise<void> {
+    if (!SerialService.supported) throw new Error("Web Serial not supported (use Chrome/Edge).");
+    this.board = board;
+    this.port = await navigator.serial.requestPort();
+    await this.openPort();
+  }
+
+  /** Reopen the same port after a close() (no picker). */
+  async reopen(board?: Board): Promise<void> {
+    if (board) this.board = board;
+    if (!this.port || !this.board) throw new Error("No port to reopen");
+    await this.openPort();
+  }
+
+  private async openPort(): Promise<void> {
+    const board = this.board!;
+    await this.port!.open({ baudRate: board.connection.baud });
+    if (board.connection.resetOnConnect && this.port!.setSignals) {
+      await this.port!.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await this.port!.setSignals({ dataTerminalReady: true, requestToSend: false });
+    }
+    this.writer = this.port!.writable!.getWriter();
+    this.libHashes.clear();
+    this.open = true;
+    this.startReadLoop();
+    this.cb.onStatus(true);
+    await this.write(CTRL_C + CTRL_C); // clean REPL prompt
+  }
+
+  /** Disconnect but keep the port so it can be reopened. */
+  async close(): Promise<void> {
     try {
       await this.reader?.cancel();
       this.writer?.releaseLock();
-      await this.port?.close();
+      if (this.open) await this.port?.close();
+    } catch {
+      /* already closing */
     } finally {
-      this.port = null;
       this.writer = null;
       this.reader = null;
+      this.open = false;
       this.cb.onStatus(false);
     }
   }
@@ -80,6 +120,8 @@ export class SerialService {
         const text = this.decoder.decode(value, { stream: true });
         this.rx += text;
         if (this.rx.length > 8192) this.rx = this.rx.slice(-4096);
+        this.buffer += text;
+        if (this.buffer.length > 100000) this.buffer = this.buffer.slice(-80000);
         if (this.forwardToTerminal) this.cb.onData(text);
       }
     } catch {

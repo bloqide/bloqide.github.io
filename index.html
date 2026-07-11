@@ -28,12 +28,11 @@
           <button data-view="code" class="view-btn">Code</button>
         </div>
         <div class="group">
-          <button id="btn-connect" title="Connect board"><i class="fa-solid fa-plug"></i> Connect</button>
+          <button id="btn-connect" title="Connect a new device"><i class="fa-solid fa-plug"></i> Connect</button>
           <button id="btn-run" disabled title="Run in RAM"><i class="fa-solid fa-play"></i> Run</button>
           <button id="btn-save-board" disabled title="Write main.py to flash">
             <i class="fa-solid fa-hard-drive"></i> Save to board
           </button>
-          <button id="btn-stop" disabled title="Stop"><i class="fa-solid fa-stop"></i></button>
           <button id="btn-terminal" title="Toggle terminal"><i class="fa-solid fa-terminal"></i></button>
         </div>
       </header>
@@ -55,13 +54,10 @@
         </div>
       </main>
 
-      <!-- Terminal drawer (right) -->
+      <!-- Terminal drawer (right): vertical split of open serial devices -->
       <aside id="terminal-drawer" class="hidden">
-        <div class="drawer-head">
-          <span>Serial terminal</span>
-          <button id="btn-terminal-close">×</button>
-        </div>
-        <div id="terminal"></div>
+        <div id="term-width-resizer" title="Drag to resize"></div>
+        <div id="term-container"></div>
       </aside>
     </div>
 

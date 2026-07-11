@@ -6,8 +6,9 @@ import { getBoard } from "./core/registry";
 import { registerBlocks, buildToolbox } from "./core/blocks";
 import { CodeGen } from "./core/codegen";
 import type { GenResult } from "./core/types";
-import { SerialService } from "./serial/serialService";
-import { TerminalView } from "./ui/terminal";
+import { ConnectionPool } from "./serial/connectionManager";
+import type { SerialService } from "./serial/serialService";
+import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
 import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
@@ -180,27 +181,73 @@ document.querySelectorAll<HTMLButtonElement>(".view-btn").forEach((btn) => {
   });
 });
 
-// ---- Terminal + serial ----
+// ---- Terminal + connection pool (shared across projects) ----
 const drawer = document.getElementById("terminal-drawer")!;
-const terminal = new TerminalView(document.getElementById("terminal")!);
+const connectBtn = document.getElementById("btn-connect")!;
 
-const serial = new SerialService({
-  onData: (text) => terminal.write(text),
-  onStatus: (connected) => {
-    (["btn-run", "btn-save-board", "btn-stop"] as const).forEach((id) => {
-      (document.getElementById(id) as HTMLButtonElement).disabled = !connected;
-    });
-    document.getElementById("btn-connect")!.innerHTML = connected
-      ? '<i class="fa-solid fa-plug-circle-xmark"></i> Disconnect'
-      : '<i class="fa-solid fa-plug"></i> Connect';
-  },
+// Project -> last device id it ran/saved on (session only; ports aren't
+// re-grantable across reloads, so there's nothing to persist).
+const projectLink = new Map<string, string>();
+
+const pool = new ConnectionPool({
+  onData: (id, text) => panel.writeTo(id, text),
+  onStatus: () => syncPool(),
 });
-terminal.onKey((data) => void serial.sendKey(data));
+
+const panel = new TerminalPanel(document.getElementById("term-container")!, {
+  onSelect: (id) => pool.highlight(id),
+  onToggle: (id) => void toggleDevice(id),
+  onStop: (id) => {
+    const s = pool.get(id);
+    if (s?.connected) void s.stop();
+  },
+  onClose: (id) => void pool.remove(id),
+  onKey: (id, data) => void pool.get(id)?.sendKey(data),
+  onRename: (id, name) => pool.rename(id, name),
+});
+
+// Reconcile the terminal panes + toolbar with the pool state.
+function syncPool(): void {
+  for (const e of pool.list()) {
+    if (!panel.has(e.id)) {
+      panel.addPane(e.id, pool.labelFor(e.id), e.service.connected, e.service.getBuffer());
+    } else {
+      panel.setLabel(e.id, pool.labelFor(e.id));
+      panel.setConnected(e.id, e.service.connected);
+    }
+  }
+  panel.retain(pool.list().map((e) => e.id));
+  panel.highlight(pool.highlighted);
+  const svc = pool.highlightedService();
+  const active = !!svc?.connected;
+  (["btn-run", "btn-save-board"] as const).forEach((id) => {
+    (document.getElementById(id) as HTMLButtonElement).disabled = !active;
+  });
+  if (pool.isEmpty()) closeTerminal();
+}
+
+// On tab switch: re-highlight the device this project last used, if it's still open.
+function activateConnection(): void {
+  const linked = projectLink.get(current.id);
+  if (linked && pool.has(linked)) pool.highlight(linked);
+  else syncPool();
+}
+
+async function toggleDevice(id: string): Promise<void> {
+  const svc = pool.get(id);
+  if (!svc) return;
+  try {
+    if (svc.connected) await svc.close();
+    else await svc.reopen(board);
+  } catch (err) {
+    alert(`Connection error: ${(err as Error).message}`);
+  }
+}
 
 function openTerminal(): void {
   drawer.classList.remove("hidden");
   Blockly.svgResize(workspace); // canvas shrinks to make room, no overlap
-  terminal.refit();
+  panel.refit();
 }
 function closeTerminal(): void {
   drawer.classList.add("hidden");
@@ -210,18 +257,14 @@ function closeTerminal(): void {
 document.getElementById("btn-terminal")!.addEventListener("click", () =>
   drawer.classList.contains("hidden") ? openTerminal() : closeTerminal()
 );
-document.getElementById("btn-terminal-close")!.addEventListener("click", closeTerminal);
 
-document.getElementById("btn-connect")!.addEventListener("click", async () => {
+// The top Connect button always opens a NEW device.
+connectBtn.addEventListener("click", async () => {
   try {
-    if (serial.connected) {
-      await serial.disconnect();
-    } else {
-      openTerminal();
-      await serial.connect(board);
-    }
+    const id = await pool.openNew(board);
+    if (id) openTerminal();
   } catch (err) {
-    terminal.write(`\r\n[error] ${(err as Error).message}\r\n`);
+    alert(`Could not open device: ${(err as Error).message}`);
   }
 });
 
@@ -234,27 +277,42 @@ function requiredFiles(): { dest: string; content: string }[] {
   return files;
 }
 
-document.getElementById("btn-run")!.addEventListener("click", async () => {
-  const code = currentCode();
+// Run / Save use the highlighted device, and link it to the current project.
+async function sendToDevice(action: (svc: SerialService) => Promise<void>): Promise<void> {
+  const svc = pool.highlightedService();
+  const id = pool.highlighted;
+  if (!svc || !svc.connected || !id) return;
+  projectLink.set(current.id, id); // remember for this project's next tab visit
   try {
-    await serial.syncLibraries(requiredFiles());
-    await serial.run(code);
+    await svc.syncLibraries(requiredFiles());
+    await action(svc);
   } catch (err) {
-    terminal.write(`\r\n[error] ${(err as Error).message}\r\n`);
+    panel.writeTo(id, `\r\n[error] ${(err as Error).message}\r\n`);
   }
-});
+}
 
-document.getElementById("btn-save-board")!.addEventListener("click", async () => {
-  const code = currentCode();
-  try {
-    await serial.syncLibraries(requiredFiles());
-    await serial.saveToBoard(code);
-  } catch (err) {
-    terminal.write(`\r\n[error] ${(err as Error).message}\r\n`);
-  }
-});
+document.getElementById("btn-run")!.addEventListener("click", () =>
+  void sendToDevice((svc) => svc.run(currentCode()))
+);
+document.getElementById("btn-save-board")!.addEventListener("click", () =>
+  void sendToDevice((svc) => svc.saveToBoard(currentCode()))
+);
 
-document.getElementById("btn-stop")!.addEventListener("click", () => serial.stop());
+// Drag the drawer's left edge to resize the whole terminal panel.
+document.getElementById("term-width-resizer")!.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  const onMove = (ev: MouseEvent) => {
+    drawer.style.width = `${Math.max(280, Math.min(900, window.innerWidth - ev.clientX))}px`;
+    Blockly.svgResize(workspace);
+    panel.refit();
+  };
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+});
 
 function currentCode(): string {
   return detached ? codeEdit.value : lastResult?.code ?? "";
@@ -334,6 +392,7 @@ function applyProject(rec: ProjectRecord): void {
     workspace.options.readOnly = false;
     regenerate();
   }
+  activateConnection(); // rebind terminal + toolbar to this project's connection
   localStorage.setItem(LAST_OPEN_KEY, current.id);
 }
 

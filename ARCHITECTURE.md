@@ -200,7 +200,26 @@ holds (event hats).
 
 ## 7. Serial + device I/O
 
-`src/serial/serialService.ts`. Web Serial gives bytes; MicroPython gives a REPL.
+`src/serial/serialService.ts` (one device) + `src/serial/connectionManager.ts`
+(`ConnectionPool`, shared across projects). Web Serial gives bytes; MicroPython
+gives a REPL.
+
+**Multi-device via a shared pool.** Web Serial allows several ports open at once.
+The user opens devices into a **pool** (top **Connect** always opens a new one),
+and exactly one is **highlighted**. **Run / Save / Stop** act on the highlighted
+device. A project remembers (for the session) the device it last ran/saved on, so
+switching tabs re-highlights it; a project with no link leaves the highlight
+untouched and only links on the next Run/Save — so several projects can share a
+device and binding happens intuitively on use. The terminal drawer is a **vertical
+split of panes**, one per device (name, connect/disconnect toggle, close; click to
+highlight, click the name to rename). Each device keeps its own scrollback +
+lib-sync cache.
+
+**No auto-reattach.** Opening a device always prompts. Web Serial exposes no
+serial number (only USB vendor/product ids), so identical boards are
+indistinguishable — silently reattaching could target the wrong board, so we let
+the user pick. Port labels are derived from the USB ids (with a known-vendor map),
+renameable per session.
 
 - **connect()** — user-gesture port pick, open at the board's baud, optional
   DTR/RTS reset, then a single read loop feeds the terminal and buffers bytes for
@@ -274,17 +293,22 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 - Cooperative scheduler runtime.
 - Blockly workspace (zelos, grid, zoom/pan), toolbox from plugins, live codegen,
   Split view with source-map highlighting, detach/revert.
-- SerialService (Web Serial + raw REPL: run / save-to-board / stop / delta lib
-  sync) + xterm terminal.
+- Serial (Web Serial + raw REPL: run / save-to-board / stop / delta lib sync) +
+  xterm terminal.
 - PWA offline precache.
 - **Project library** (IndexedDB): open / duplicate / delete, per-project
-  autosave, reopen-last-on-boot, rename, `.mbproj` export/import.
+  autosave (empty drafts not persisted until edited), reopen-last-on-boot,
+  rename, `.mbproj` export/import.
+- **Multi-project tabs**: open/switch/close, per-tab viewport, copy/paste across
+  tabs.
+- **Multi-device**: shared `ConnectionPool`, highlighted device drives Run/Save,
+  per-project session link, multi-pane terminal (rename / reconnect / close).
 
 **Designed, not yet built (clean add-ons — no foundation changes):**
 
 - In-app wizard block editor; reusable "make a block" (collapse/unroll/promote);
-  in-app Board Editor; multi-project tabs; examples gallery (files exist, loader
-  not wired); board/plugin icons in UI; block search; i18n; traceback → block
-  highlighting; device-side sync manifest; raw-paste flow control; additional
-  boards/plugins (I²C/SPI/PWM/NeoPixel).
+  in-app Board Editor; examples gallery (files exist, loader not wired);
+  board/plugin icons in UI; block search; i18n; traceback → block highlighting;
+  device-side sync manifest; raw-paste flow control; side-by-side project compare
+  (needs multi-workspace); additional boards/plugins (I²C/SPI/PWM/NeoPixel).
 ```

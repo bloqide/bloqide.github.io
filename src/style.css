@@ -130,16 +130,50 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 /* Terminal drawer */
 #terminal-drawer {
   grid-area: term;
+  position: relative;
   width: 420px;
   display: flex; flex-direction: column;
   background: var(--panel); border-left: 1px solid var(--line);
 }
-.drawer-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 13px;
+#term-width-resizer {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+  cursor: col-resize; z-index: 5;
 }
-.drawer-head button { padding: 0 8px; }
-#terminal { flex: 1; padding: 4px; overflow: hidden; }
+#term-width-resizer:hover { background: var(--accent); opacity: 0.6; }
+#term-container { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* One pane per open serial device */
+.term-pane {
+  flex-grow: 1; flex-shrink: 1; flex-basis: 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.term-pane.disconnected .term-body { opacity: 0.5; }
+.term-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; font-size: 12px; color: var(--muted);
+  background: var(--bg2); border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.term-pane.selected .term-head { background: var(--accent); color: #11111b; }
+.term-pane.selected .term-head button { color: #11111b; }
+.term-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.term-name:hover { text-decoration: underline; }
+.term-head .spacer { flex: 1; }
+.term-stop, .term-conn, .term-close {
+  padding: 2px 6px; border: none; background: transparent; color: var(--muted); font-size: 12px;
+}
+.term-stop:hover, .term-conn:hover, .term-close:hover { color: var(--fg); background: #45475a; border-radius: 4px; }
+.term-pane.selected .term-head button:hover { background: rgba(0, 0, 0, 0.2); }
+.term-body { flex: 1; padding: 2px 4px; overflow: hidden; min-height: 0; }
+
+/* Drag handle between stacked panes */
+.term-split {
+  height: 6px; flex: 0 0 6px;
+  cursor: row-resize; background: var(--bg2);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.term-split:hover { background: var(--accent); opacity: 0.6; }
 
 /* Project name button */
 .project-name {
