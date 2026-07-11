@@ -160,10 +160,14 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .term-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .term-name:hover { text-decoration: underline; }
 .term-head .spacer { flex: 1; }
-.term-stop, .term-conn, .term-close {
+.term-stop, .term-reset, .term-conn, .term-close {
   padding: 2px 6px; border: none; background: transparent; color: var(--muted); font-size: 12px;
 }
-.term-stop:hover, .term-conn:hover, .term-close:hover { color: var(--fg); background: #45475a; border-radius: 4px; }
+.term-stop:hover, .term-reset:hover, .term-conn:hover, .term-close:hover {
+  color: var(--fg); background: #45475a; border-radius: 4px;
+}
+.term-head button:disabled { opacity: 0.35; cursor: not-allowed; background: transparent; }
+.term-pane.busy .term-head { cursor: progress; }
 .term-pane.selected .term-head button:hover { background: rgba(0, 0, 0, 0.2); }
 .term-body { flex: 1; padding: 2px 4px; overflow: hidden; min-height: 0; }
 

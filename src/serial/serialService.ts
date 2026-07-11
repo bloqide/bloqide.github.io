@@ -82,16 +82,39 @@ export class SerialService {
   private async openPort(): Promise<void> {
     const board = this.board!;
     await this.port!.open({ baudRate: board.connection.baud });
-    if (board.connection.resetOnConnect && this.port!.setSignals) {
-      await this.port!.setSignals({ dataTerminalReady: false, requestToSend: true });
-      await this.port!.setSignals({ dataTerminalReady: true, requestToSend: false });
+    // Leave DTR/RTS untouched on connect so we don't reset the board. On ESP32-C3
+    // native USB (USB Serial/JTAG) any setSignals() call pokes the controller's
+    // reset logic, so we only pulse it when the board explicitly asks for a reset
+    // on connect (connection.resetOnConnect) or when the user hits Reset.
+    if (board.connection.resetOnConnect) {
+      try {
+        await this.pulseReset();
+      } catch {
+        /* signals unsupported on this platform */
+      }
     }
     this.writer = this.port!.writable!.getWriter();
     this.libHashes.clear();
     this.open = true;
     this.startReadLoop();
     this.cb.onStatus(true);
-    await this.write(CTRL_C + CTRL_C); // clean REPL prompt
+    // Connect is passive: don't send anything, so we neither interrupt a running
+    // program nor emit stray prompts. Use Stop/Run for an explicit interrupt.
+  }
+
+  /** Pulse RTS (EN) low->high with GPIO0 high, so the board reboots into main.py. */
+  private async pulseReset(): Promise<void> {
+    const setSignals = this.port?.setSignals?.bind(this.port);
+    if (!setSignals) return;
+    await setSignals({ dataTerminalReady: false, requestToSend: true });
+    await delay(120);
+    await setSignals({ dataTerminalReady: false, requestToSend: false });
+  }
+
+  /** Hardware-reset the connected board. */
+  async reset(): Promise<void> {
+    if (!this.open || !this.port?.setSignals) return;
+    await this.pulseReset();
   }
 
   /** Disconnect but keep the port so it can be reopened. */

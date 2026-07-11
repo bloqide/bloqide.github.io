@@ -201,6 +201,10 @@ const panel = new TerminalPanel(document.getElementById("term-container")!, {
     const s = pool.get(id);
     if (s?.connected) void s.stop();
   },
+  onReset: (id) => {
+    const s = pool.get(id);
+    if (s?.connected) void s.reset();
+  },
   onClose: (id) => void pool.remove(id),
   onKey: (id, data) => void pool.get(id)?.sendKey(data),
   onRename: (id, name) => pool.rename(id, name),
@@ -277,17 +281,34 @@ function requiredFiles(): { dest: string; content: string }[] {
   return files;
 }
 
+// While a flash write is in progress, disable controls that could interrupt it
+// (reset/stop/disconnect/close and Run/Save) — an interrupted write corrupts the
+// device filesystem.
+function setBusy(id: string, busy: boolean): void {
+  panel.setBusy(id, busy);
+  if (busy) {
+    (["btn-run", "btn-save-board"] as const).forEach((b) => {
+      (document.getElementById(b) as HTMLButtonElement).disabled = true;
+    });
+  } else {
+    syncPool();
+  }
+}
+
 // Run / Save use the highlighted device, and link it to the current project.
 async function sendToDevice(action: (svc: SerialService) => Promise<void>): Promise<void> {
   const svc = pool.highlightedService();
   const id = pool.highlighted;
   if (!svc || !svc.connected || !id) return;
   projectLink.set(current.id, id); // remember for this project's next tab visit
+  setBusy(id, true);
   try {
     await svc.syncLibraries(requiredFiles());
     await action(svc);
   } catch (err) {
     panel.writeTo(id, `\r\n[error] ${(err as Error).message}\r\n`);
+  } finally {
+    setBusy(id, false);
   }
 }
 
