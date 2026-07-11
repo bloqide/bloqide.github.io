@@ -12,6 +12,7 @@ export interface ProjectRecord {
   blocks: unknown; // Blockly.serialization.workspaces.save() output
   detached: boolean;
   editedCode?: string; // present only when detached
+  view?: { scale: number; x: number; y: number }; // per-tab zoom + scroll
   updatedAt: number;
 }
 

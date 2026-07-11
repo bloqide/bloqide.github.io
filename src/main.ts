@@ -272,13 +272,14 @@ function setName(name: string): void {
   nameEl.textContent = name;
 }
 
-// autosave() is called by regenerate() on every workspace change.
+// autosave() is called by regenerate() on every workspace change, and on flush.
 function autosave(): void {
   if (loading) return;
   current.blocks = Blockly.serialization.workspaces.save(workspace);
   current.board = board.id;
   current.detached = detached;
   current.editedCode = detached ? codeEdit.value : undefined;
+  current.view = { scale: workspace.getScale(), x: workspace.scrollX, y: workspace.scrollY };
   current.updatedAt = Date.now();
   void projectStore.put(current);
   localStorage.setItem(LAST_OPEN_KEY, current.id);
@@ -294,6 +295,12 @@ function applyProject(rec: ProjectRecord): void {
     Blockly.serialization.workspaces.load(rec.blocks as object, workspace);
   } catch {
     /* ignore corrupt block data */
+  }
+  workspace.clearUndo(); // don't let undo cross project boundaries
+  // Restore this tab's own zoom + scroll.
+  if (rec.view) {
+    workspace.setScale(rec.view.scale);
+    workspace.scroll(rec.view.x, rec.view.y);
   }
   loading = false;
 
@@ -319,20 +326,104 @@ function applyProject(rec: ProjectRecord): void {
   localStorage.setItem(LAST_OPEN_KEY, current.id);
 }
 
+// ---- Open project tabs (multi-project) ----
+// One workspace instance whose content is swapped on tab switch. Non-active tabs
+// are flushed to the store when left, so their in-memory records stay current.
+// Blockly's clipboard is module-global, so copy in one tab / paste in another
+// works across a switch.
+const OPEN_TABS_KEY = "microblock:openTabs";
+const tabbar = document.getElementById("tabbar")!;
+let openTabs: ProjectRecord[] = [];
+
+function persistTabs(): void {
+  localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(openTabs.map((t) => t.id)));
+  localStorage.setItem(LAST_OPEN_KEY, current.id);
+}
+
+// Offset the tab strip so tabs line up with the left edge of the canvas
+// (i.e. past the toolbox category rail).
+function alignTabbar(): void {
+  const toolbox = document.querySelector<HTMLElement>(".blocklyToolbox, .blocklyToolboxDiv");
+  tabbar.style.paddingLeft = `${(toolbox?.offsetWidth ?? 0) + 8}px`;
+}
+
+function renderTabs(): void {
+  tabbar.innerHTML = "";
+  alignTabbar();
+  for (const t of openTabs) {
+    const tab = document.createElement("div");
+    tab.className = "tab" + (t.id === current.id ? " active" : "");
+    const label = document.createElement("span");
+    label.className = "tab-label";
+    label.textContent = t.name;
+    label.title = t.name;
+    label.addEventListener("click", () => openProject(t));
+    const close = document.createElement("button");
+    close.className = "tab-close";
+    close.title = "Close tab";
+    close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    close.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeTab(t.id);
+    });
+    tab.append(label, close);
+    tabbar.appendChild(tab);
+  }
+  const add = document.createElement("button");
+  add.className = "tab-new";
+  add.title = "New project";
+  add.innerHTML = '<i class="fa-solid fa-plus"></i>';
+  add.addEventListener("click", () => openProject(newRecord("Untitled", DEFAULT_BOARD)));
+  tabbar.appendChild(add);
+}
+
+function openProject(rec: ProjectRecord): void {
+  const existing = openTabs.find((t) => t.id === rec.id);
+  if (existing) {
+    if (existing.id !== current.id) switchTo(existing);
+    return;
+  }
+  openTabs.push(rec);
+  switchTo(rec);
+}
+
+function switchTo(rec: ProjectRecord): void {
+  if (current && current.id !== rec.id) autosave(); // flush the tab we're leaving
+  applyProject(rec);
+  renderTabs();
+  persistTabs();
+  // Focus the workspace so keyboard paste works immediately (no canvas click).
+  workspace.markFocused();
+}
+
+function closeTab(id: string): void {
+  const idx = openTabs.findIndex((t) => t.id === id);
+  if (idx < 0) return;
+  const wasActive = current.id === id;
+  if (wasActive) autosave(); // flush before closing
+  openTabs.splice(idx, 1);
+  if (openTabs.length === 0) {
+    openProject(newRecord("Untitled", DEFAULT_BOARD));
+  } else if (wasActive) {
+    switchTo(openTabs[Math.min(idx, openTabs.length - 1)]);
+  } else {
+    renderTabs();
+    persistTabs();
+  }
+}
+
 const library = initLibrary({
   onOpen: async (id) => {
     const rec = await projectStore.get(id);
-    if (rec) applyProject(rec);
+    if (rec) openProject(rec);
   },
   currentId: () => current.id,
 });
 
 document.getElementById("btn-open")!.addEventListener("click", () => library.open());
-
-document.getElementById("btn-new")!.addEventListener("click", () => {
-  applyProject(newRecord("Untitled", DEFAULT_BOARD));
-});
-
+document.getElementById("btn-new")!.addEventListener("click", () =>
+  openProject(newRecord("Untitled", DEFAULT_BOARD))
+);
 document.getElementById("btn-export")!.addEventListener("click", () => {
   autosave();
   download(current);
@@ -342,19 +433,28 @@ nameEl.addEventListener("click", () => {
   const name = prompt("Project name:", current.name);
   if (name && name.trim()) {
     setName(name.trim());
+    renderTabs();
     autosave();
   }
 });
 
-// ---- Boot: reopen last project, else start fresh ----
+// ---- Boot: reopen previously open tabs, else start fresh ----
 async function boot(): Promise<void> {
-  const lastId = localStorage.getItem(LAST_OPEN_KEY);
-  const rec = lastId ? await projectStore.get(lastId) : undefined;
-  if (rec) {
-    applyProject(rec);
-  } else {
-    setName(current.name);
-    regenerate();
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(localStorage.getItem(OPEN_TABS_KEY) ?? "[]");
+  } catch {
+    /* ignore corrupt tab list */
   }
+  for (const id of ids) {
+    const rec = await projectStore.get(id);
+    if (rec) openTabs.push(rec);
+  }
+  if (openTabs.length === 0) openTabs.push(newRecord("Untitled", DEFAULT_BOARD));
+  const activeId = localStorage.getItem(LAST_OPEN_KEY);
+  const active = openTabs.find((t) => t.id === activeId) ?? openTabs[0];
+  applyProject(active);
+  renderTabs();
+  persistTabs();
 }
 void boot();

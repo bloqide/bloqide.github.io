@@ -20,9 +20,9 @@ body {
 
 #app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: 1fr auto;
-  grid-template-areas: "menu menu" "work term";
+  grid-template-areas: "menu menu" "tabs tabs" "work term";
   height: 100vh;
 }
 
@@ -52,6 +52,51 @@ button {
 button:hover { background: #45475a; }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 .view-btn.active { background: var(--accent); color: #11111b; border-color: var(--accent); }
+
+/* Tab bar */
+#tabbar {
+  grid-area: tabs;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 8px 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  max-width: 200px;
+}
+.tab.active { background: var(--bg); color: var(--fg); border-color: var(--accent); }
+.tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-close {
+  padding: 0 5px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  border-radius: 4px;
+}
+.tab-close:hover { background: #45475a; color: var(--fg); }
+.tab-new {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+  align-self: center;
+}
+.tab-new:hover { color: var(--fg); background: transparent; }
 
 /* Work area */
 #work { grid-area: work; position: relative; display: flex; min-width: 0; min-height: 0; }
