@@ -1,6 +1,81 @@
+import * as Blockly from "blockly";
 import type { BloqPlugin, GenContext } from "../../src/core/types";
-import type * as Blockly from "blockly";
 import "../../src/ui/fieldTextArea"; // registers the resizable "field_textarea"
+
+// --- if/else-if mutator ----------------------------------------------------
+// Gives the if_else block a variable number of "else if" clauses, driven by
+// inline + / − buttons sitting just above the else branch (no gear/flyout).
+// Clauses are inputs IF1/THEN1, IF2/THEN2, …; the base if uses COND/DO.
+
+const IFELSE_MUTATOR = "bloq_ifelse_mutator";
+const btnSvg = (path: string) =>
+  "data:image/svg+xml;base64," +
+  btoa(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15">` +
+      `<path d="${path}" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>`
+  );
+const PLUS_ICON = btnSvg("M7.5 3.4v8.2M3.4 7.5h8.2");
+const MINUS_ICON = btnSvg("M3.4 7.5h8.2");
+
+const IFELSE_MIXIN = {
+  elifCount_: 0,
+
+  saveExtraState(this: any) {
+    return { elif: this.elifCount_ };
+  },
+  loadExtraState(this: any, state: any) {
+    this.elifCount_ = state?.elif ?? 0;
+    this.updateShape_();
+  },
+
+  updateShape_(this: any) {
+    // The button row + else are created once and always kept last.
+    if (!this.getInput("CTRL")) {
+      this.appendDummyInput("CTRL")
+        .appendField("else if")
+        .appendField(new Blockly.FieldImage(PLUS_ICON, 15, 15, "+", () => this.plus_()), "PLUS")
+        .appendField(new Blockly.FieldImage(MINUS_ICON, 15, 15, "−", () => this.minus_()), "MINUS");
+    }
+    if (!this.getInput("ELSE")) this.appendStatementInput("ELSE").appendField("else");
+    // Add missing else-if clauses, inserted just above the button row.
+    for (let i = 1; i <= this.elifCount_; i++) {
+      if (!this.getInput("IF" + i)) {
+        this.appendValueInput("IF" + i).appendField("else if");
+        this.appendStatementInput("THEN" + i);
+        this.moveInputBefore("IF" + i, "CTRL");
+        this.moveInputBefore("THEN" + i, "CTRL");
+      }
+    }
+    // Drop surplus clauses.
+    for (let i = this.elifCount_ + 1; this.getInput("IF" + i); i++) {
+      this.removeInput("IF" + i);
+      this.removeInput("THEN" + i);
+    }
+  },
+
+  setElif_(this: any, n: number) {
+    const before = JSON.stringify(this.saveExtraState());
+    this.elifCount_ = n;
+    this.updateShape_();
+    const after = JSON.stringify(this.saveExtraState());
+    if (before !== after) {
+      Blockly.Events.fire(new Blockly.Events.BlockChange(this, "mutation", null, before, after));
+    }
+  },
+  plus_(this: any) {
+    this.setElif_(this.elifCount_ + 1);
+  },
+  minus_(this: any) {
+    if (this.elifCount_ > 0) this.setElif_(this.elifCount_ - 1);
+  },
+};
+
+if (!Blockly.Extensions.isRegistered(IFELSE_MUTATOR)) {
+  Blockly.Extensions.registerMutator(IFELSE_MUTATOR, IFELSE_MIXIN, function (this: any) {
+    this.updateShape_();
+  });
+}
+// ---------------------------------------------------------------------------
 
 // Control blocks: program entry (hats), loops, waits, and the raw-code escape
 // hatch. These blocks ADAPT to the active codegen mode — they never force the
@@ -234,18 +309,20 @@ export const plugin: BloqPlugin = {
     if_else: {
       kind: "statement",
       json: {
+        // Base "if COND / do DO"; the mutator appends any else-if clauses, the
+        // +/- button row, and the else branch.
         type: "if_else",
-        message0: "if %1 %2 %3 else %4",
+        message0: "if %1 %2 %3",
         args0: [
           { type: "input_value", name: "COND" },
           { type: "input_dummy" },
           { type: "input_statement", name: "DO" },
-          { type: "input_statement", name: "ELSE" },
         ],
         inputsInline: true,
         previousStatement: null,
         nextStatement: null,
         colour: 210,
+        mutator: IFELSE_MUTATOR,
       },
     },
     wait_until: {
@@ -330,6 +407,10 @@ export const plugin: BloqPlugin = {
     if_else: (block: Blockly.Block, ctx: GenContext) => {
       ctx.line(`if ${ctx.value(block, "COND", "False")}:`, block.id);
       emitBranch(block, "DO", ctx);
+      for (let i = 1; block.getInput(`IF${i}`); i++) {
+        ctx.line(`elif ${ctx.value(block, `IF${i}`, "False")}:`, block.id);
+        emitBranch(block, `THEN${i}`, ctx);
+      }
       ctx.line("else:", block.id);
       emitBranch(block, "ELSE", ctx);
     },

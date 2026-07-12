@@ -491,5 +491,31 @@ function num(w: Blockly.Workspace, n: number) {
   console.assert(r.requiredLibraries.has("/lib/bleuart.py"), "bleuart.py required");
 }
 
+// --- Test 24: if / else-if / else via the mutator ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const iff = w.newBlock("if_else") as any;
+  iff.plus_(); // add one else-if clause -> IF1 / THEN1
+  const c0 = w.newBlock("logic_compare");
+  c0.setFieldValue(">", "OP");
+  plug(c0, "A", num(w, 5));
+  plug(c0, "B", num(w, 3));
+  plug(iff, "COND", c0);
+  body(iff, "DO", w.newBlock("gpio_toggle_led"));
+  const c1 = w.newBlock("logic_compare");
+  c1.setFieldValue("<", "OP");
+  plug(c1, "A", num(w, 1));
+  plug(c1, "B", num(w, 2));
+  plug(iff, "IF1", c1);
+  body(iff, "THEN1", w.newBlock("gpio_toggle_led"));
+  connectChain(hat, iff);
+  expect("if / elif / else", cg().generate(w).code, [
+    "if (5 > 3):",
+    "elif (1 < 2):",
+    "else:",
+  ]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
