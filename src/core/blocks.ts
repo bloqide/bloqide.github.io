@@ -64,15 +64,29 @@ export function registerBlocks(board: Board): void {
 
 /** Build a Blockly category toolbox from the board's active plugins. */
 export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinition {
-  const contents = activePlugins(board).map((plugin) => ({
-    kind: "category",
-    name: plugin.toolbox.category,
-    colour: String(plugin.toolbox.colour),
-    // Replace Blockly's default icon span classes with a FontAwesome glyph.
-    cssConfig: plugin.toolbox.faIcon
-      ? { icon: `cat-icon fa-solid ${plugin.toolbox.faIcon}` }
-      : undefined,
-    contents: Object.keys(plugin.blocks).map((type) => ({ kind: "block", type })),
-  }));
-  return { kind: "categoryToolbox", contents };
+  const contents = activePlugins(board).map((plugin) => {
+    const category: Record<string, unknown> = {
+      kind: "category",
+      name: plugin.toolbox.category,
+      colour: String(plugin.toolbox.colour),
+      // Replace Blockly's default icon span classes with a FontAwesome glyph.
+      cssConfig: plugin.toolbox.faIcon
+        ? { icon: `cat-icon fa-solid ${plugin.toolbox.faIcon}` }
+        : undefined,
+    };
+    if (plugin.toolbox.custom) {
+      // Dynamic flyout (e.g. Variables): Blockly's registered callback supplies
+      // the blocks, plus affordances like the "Create variable" button.
+      category.custom = plugin.toolbox.custom;
+    } else {
+      // A block yields one flyout entry, or several when its `toolbox` is an
+      // array of variants (e.g. one preset per operator of a dropdown block).
+      category.contents = Object.entries(plugin.blocks).flatMap(([type, def]) => {
+        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
+        return variants.map((extra) => ({ kind: "block", type, ...extra }));
+      });
+    }
+    return category;
+  });
+  return { kind: "categoryToolbox", contents } as unknown as Blockly.utils.toolbox.ToolboxDefinition;
 }

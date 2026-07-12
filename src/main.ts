@@ -46,6 +46,13 @@ const workspace = Blockly.inject("blockly", {
 const flyout = workspace.getFlyout();
 if (flyout) (flyout as unknown as { autoClose: boolean }).autoClose = false;
 
+// Supply the Variables category flyout (get/set blocks + "Create variable"
+// button). Blockly registers this by default, but do it explicitly so the
+// custom category in buildToolbox always resolves.
+if (Blockly.Variables?.flyoutCategory) {
+  workspace.registerToolboxCategoryCallback("VARIABLE", Blockly.Variables.flyoutCategory);
+}
+
 // Undo / redo.
 document.getElementById("btn-undo")!.addEventListener("click", () => workspace.undo(false));
 document.getElementById("btn-redo")!.addEventListener("click", () => workspace.undo(true));
@@ -77,7 +84,37 @@ function regenerate(): void {
   lastResult = codegen.generate(workspace);
   renderCode(lastResult);
   modeBadge.textContent = lastResult.schedulerMode ? "scheduler mode" : "simple mode";
+  highlightUnknownBlocks(lastResult.unknownBlocks);
   autosave();
+}
+
+// Blocks with no generator are filled red on the canvas, with the error in
+// their tooltip (hover) and a warning bubble. Tracks the previous set (and each
+// block's original tooltip) so marks can be cleared when the block is fixed.
+const UNKNOWN_MSG = "⚠ This block has no code generator — it won't run. Delete or replace it.";
+let markedUnknown: string[] = [];
+const savedTooltips = new Map<string, unknown>();
+function highlightUnknownBlocks(ids: string[]): void {
+  const next = new Set(ids);
+  for (const id of markedUnknown) {
+    if (next.has(id)) continue;
+    const b = workspace.getBlockById(id) as Blockly.BlockSvg | null;
+    if (b) {
+      b.getSvgRoot()?.classList.remove("bloq-unknown-block");
+      b.setWarningText(null);
+      if (savedTooltips.has(id)) b.setTooltip(savedTooltips.get(id) as string);
+    }
+    savedTooltips.delete(id);
+  }
+  for (const id of ids) {
+    const b = workspace.getBlockById(id) as Blockly.BlockSvg | null;
+    if (!b) continue;
+    b.getSvgRoot()?.classList.add("bloq-unknown-block");
+    if (!savedTooltips.has(id)) savedTooltips.set(id, b.tooltip);
+    b.setTooltip(UNKNOWN_MSG);
+    b.setWarningText(UNKNOWN_MSG);
+  }
+  markedUnknown = ids;
 }
 
 function renderCode(result: GenResult): void {

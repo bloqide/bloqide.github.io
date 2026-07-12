@@ -268,8 +268,8 @@ in-memory session hash cache; a full impl reads a device-side manifest.)*
   reusable blocks live in a separate IndexedDB library, shared across projects.
 - **Built:** IndexedDB project library (list / open / duplicate / delete),
   per-project autosave, reopen-last-project on boot, rename, `.bloq`
-  export/import (`src/project/`, `src/ui/library.ts`). Single active project;
-  multi-project tabs still deferred.
+  export/import (`src/project/`, `src/ui/library.ts`). Multi-project tabs ship
+  (see the Status section).
 
 ---
 
@@ -310,5 +310,6 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   in-app Board Editor; examples gallery (files exist, loader not wired);
   board/plugin icons in UI; block search; i18n; traceback → block highlighting;
   device-side sync manifest; raw-paste flow control; side-by-side project compare
-  (needs multi-workspace); additional boards/plugins (I²C/SPI/PWM/NeoPixel).
+  (multi-workspace prerequisite now met); additional boards/plugins
+  (I²C/SPI/PWM/NeoPixel).
 ```

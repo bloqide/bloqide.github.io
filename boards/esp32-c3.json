@@ -41,7 +41,7 @@
   "onboard": [{ "type": "led", "pin": 8, "name": "onboard LED (GPIO8)" }],
 
   "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi"],
-  "plugins": ["core-control", "core-gpio"],
+  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables"],
 
   "libraries": [],
   "examples": [

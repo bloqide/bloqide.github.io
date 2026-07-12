@@ -122,6 +122,12 @@ export interface BlockDef {
    */
   hat?: boolean;
   /**
+   * A setup hat: its body runs once at module scope before the stacks start
+   * (not as a scheduler task), and does NOT count toward the >1-hat scheduler
+   * trigger. Variables it assigns become the program's globals.
+   */
+  setup?: boolean;
+  /**
    * Value blocks produce an expression; statement/hat blocks emit lines.
    */
   kind?: "statement" | "value" | "hat";
@@ -131,6 +137,13 @@ export interface BlockDef {
    * single hat. Core control blocks do NOT set this — they adapt to the mode.
    */
   requiresScheduler?: boolean;
+  /**
+   * Extra props merged into this block's toolbox flyout entry — chiefly `inputs`
+   * with shadow blocks (default plugged-in literals) and `fields` (preset field
+   * values). An ARRAY produces several flyout entries of the same block type —
+   * e.g. one preset variant per operator of a dropdown block.
+   */
+  toolbox?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 export interface BloqPlugin {
@@ -140,7 +153,15 @@ export interface BloqPlugin {
   requires?: Capability[]; // capability gate — hidden if board lacks these
   dependencies?: string[]; // other plugin ids
 
-  toolbox: { category: string; colour: number; order: number; faIcon?: string };
+  toolbox: {
+    category: string;
+    colour: number;
+    order: number;
+    faIcon?: string;
+    /** Blockly dynamic-flyout key (e.g. "VARIABLE") — blocks are supplied by a
+     *  registered category callback instead of a static list. */
+    custom?: string;
+  };
   icon?: { preset?: string; file?: string };
 
   libraries?: BoardLibrary[]; // device .py deps, merged into the sync set
@@ -181,6 +202,10 @@ export interface GenContext {
   /** Marks that the current stack emitted a yield (scheduler mode bookkeeping). */
   markYield(): void;
 
+  /** Record that a variable name is assigned here (drives `global` decls when
+   *  the name is a setup-declared global used inside a scheduler stack). */
+  assign(name: string): void;
+
   /** Count of lines emitted so far — used to detect empty loop bodies. */
   linesEmitted(): number;
 }
@@ -196,4 +221,7 @@ export interface GenResult {
   /** Device files required by this program (dest paths). */
   requiredLibraries: Set<string>;
   schedulerMode: boolean;
+  /** Ids of blocks with no generator (rendered as `# [unknown block]`), so the
+   *  UI can flag them on the canvas. */
+  unknownBlocks: string[];
 }

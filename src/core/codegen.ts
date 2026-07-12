@@ -29,6 +29,8 @@ export class CodeGen {
   private board: Board;
   private defs: Map<string, BlockDef>;
   private gens: Map<string, BlockGenerator | ValueGenerator>;
+  /** Block ids encountered with no generator, collected per generate() call. */
+  private unknown = new Set<string>();
 
   constructor(
     board: Board,
@@ -44,11 +46,14 @@ export class CodeGen {
   }
 
   generate(workspace: Blockly.Workspace): GenResult {
-    const hats = workspace
+    this.unknown = new Set<string>();
+    const allHats = workspace
       .getTopBlocks(true)
       .filter((b) => this.defs.get(b.type)?.hat);
+    const setupHats = allHats.filter((b) => this.defs.get(b.type)?.setup);
+    const runHats = allHats.filter((b) => !this.defs.get(b.type)?.setup);
 
-    const schedulerMode = this.decideSchedulerMode(workspace, hats);
+    const schedulerMode = this.decideSchedulerMode(workspace, runHats);
 
     // Header buckets, populated as generators run.
     const imports = new Set<string>(this.board.runtime.imports);
@@ -58,10 +63,33 @@ export class CodeGen {
     const requiredLibraries = new Set<string>();
     const varNames = new Map<string, string>();
 
-    // Generate each hat body into its own buffer.
-    const stacks = hats.map((hat) => {
+    // Setup hats -> module-level init that runs once before the stacks. Always
+    // generated in simple (non-scheduler) context: `yield` is illegal at module
+    // scope, and startup waits should just block. Names it assigns are globals.
+    const initBuf: LineRecord[] = [];
+    const globalNames = new Set<string>();
+    for (const hat of setupHats) {
+      const ctx = this.makeContext({
+        schedulerMode: false,
+        imports,
+        setup,
+        setupSeen,
+        functions,
+        requiredLibraries,
+        varNames,
+        buf: initBuf,
+        onYield: () => {},
+        onAssign: (n) => globalNames.add(n),
+      });
+      this.genChain(hat.getNextBlock(), ctx);
+    }
+
+    // Generate each run hat's body into its own buffer, tracking which variables
+    // it assigns (so a stack that writes a global gets a `global` declaration).
+    const stacks = runHats.map((hat) => {
       const buf: LineRecord[] = [];
       let hasYield = false;
+      const assigned = new Set<string>();
       const ctx = this.makeContext({
         schedulerMode,
         imports,
@@ -72,9 +100,10 @@ export class CodeGen {
         varNames,
         buf,
         onYield: () => (hasYield = true),
+        onAssign: (n) => assigned.add(n),
       });
       this.genChain(hat.getNextBlock(), ctx);
-      return { hat, buf, hasYield };
+      return { hat, buf, hasYield, assigned };
     });
 
     if (schedulerMode) requiredLibraries.add("/lib/bloq.py");
@@ -89,6 +118,12 @@ export class CodeGen {
     for (const s of setup) out.push({ text: s });
     if (setup.length) out.push({ text: "" });
 
+    // One-time setup-block body (module scope: globals + startup init).
+    if (initBuf.length) {
+      out.push(...initBuf);
+      out.push({ text: "" });
+    }
+
     for (const [name, body] of functions) {
       out.push({ text: `def ${name}:` });
       for (const ln of body.split("\n")) out.push({ text: INDENT + ln });
@@ -98,11 +133,15 @@ export class CodeGen {
     if (!schedulerMode) {
       // At most one stack; emit its body at top level.
       const body = stacks[0]?.buf ?? [];
-      if (body.length === 0) out.push({ text: "# (empty program)" });
+      if (body.length === 0 && initBuf.length === 0) out.push({ text: "# (empty program)" });
       out.push(...body);
     } else {
       stacks.forEach((s, i) => {
         out.push({ text: `def stack_${i + 1}():`, blockId: s.hat.id });
+        // Declare any globals this stack assigns so writes rebind them (not
+        // shadow them with a function local).
+        const gs = [...s.assigned].filter((n) => globalNames.has(n));
+        if (gs.length) out.push({ text: INDENT + `global ${gs.join(", ")}`, blockId: s.hat.id });
         if (s.buf.length === 0) {
           out.push({ text: INDENT + "yield", blockId: s.hat.id });
         } else {
@@ -135,6 +174,7 @@ export class CodeGen {
       blockToLines,
       requiredLibraries,
       schedulerMode,
+      unknownBlocks: [...this.unknown],
     };
   }
 
@@ -168,6 +208,7 @@ export class CodeGen {
     }
     const gen = this.gens.get(block.type);
     if (!gen) {
+      this.unknown.add(block.id);
       ctx.line(`# [unknown block: ${block.type}]`, block.id);
       return;
     }
@@ -186,6 +227,7 @@ export class CodeGen {
     if (typeof gen === "function") {
       return (gen as ValueGenerator)(target, ctx) || fallback;
     }
+    this.unknown.add(target.id);
     return fallback;
   }
 
@@ -199,6 +241,7 @@ export class CodeGen {
     varNames: Map<string, string>;
     buf: LineRecord[];
     onYield: () => void;
+    onAssign: (name: string) => void;
   }): GenContext {
     let indent = 0;
     const ctx: GenContext = {
@@ -237,6 +280,7 @@ export class CodeGen {
       statement: (block, inputName) => this.genChain(block.getInputTargetBlock(inputName), ctx),
       value: (block, inputName, fallback = "0") => this.evalValue(block, inputName, fallback, ctx),
       markYield: () => s.onYield(),
+      assign: (name) => s.onAssign(name),
       linesEmitted: () => s.buf.length,
     };
     return ctx;

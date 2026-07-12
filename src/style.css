@@ -260,3 +260,11 @@ button.danger:hover { background: #f38ba8; color: #11111b; }
   font-size: 11px !important;
   text-align: center;
 }
+
+/* Blocks with no code generator: filled vivid red so they're obviously broken. */
+.bloq-unknown-block > .blocklyPath {
+  fill: #ff1414 !important;
+  fill-opacity: 1 !important;
+  stroke: #a30000 !important;
+  stroke-width: 2px !important;
+}
