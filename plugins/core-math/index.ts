@@ -91,6 +91,27 @@ export const plugin: BloqPlugin = {
       },
       toolbox: { inputs: { A: NUM_SHADOW } },
     },
+    math_random_int: {
+      kind: "value",
+      json: {
+        type: "math_random_int",
+        message0: "random integer %1 to %2",
+        args0: [
+          { type: "input_value", name: "LOW" },
+          { type: "input_value", name: "HIGH" },
+        ],
+        inputsInline: true,
+        output: null,
+        colour: COLOUR,
+        tooltip: "A random whole number between the two values (both included).",
+      },
+      toolbox: {
+        inputs: {
+          LOW: { shadow: { type: "math_number", fields: { NUM: 1 } } },
+          HIGH: { shadow: { type: "math_number", fields: { NUM: 100 } } },
+        },
+      },
+    },
   },
 
   generators: {
@@ -104,5 +125,10 @@ export const plugin: BloqPlugin = {
       return `(${ctx.value(block, "A", "0")} ${op} ${ctx.value(block, "B", "0")})`;
     },
     math_bitnot: (block: Blockly.Block, ctx: GenContext) => `(~${ctx.value(block, "A", "0")})`,
+    math_random_int: (block: Blockly.Block, ctx: GenContext) => {
+      ctx.ensureImport("import random");
+      // randint(a, b) includes both endpoints.
+      return `random.randint(${ctx.value(block, "LOW", "1")}, ${ctx.value(block, "HIGH", "100")})`;
+    },
   },
 };

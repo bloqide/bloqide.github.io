@@ -364,5 +364,19 @@ function num(w: Blockly.Workspace, n: number) {
   expect("bitwise and + invert", cg().generate(w).code, ["print((6 & (~3)))"]);
 }
 
+// --- Test 17: random integer in a range (inclusive, imports random) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const rnd = w.newBlock("math_random_int");
+  plug(rnd, "LOW", num(w, 1));
+  plug(rnd, "HIGH", num(w, 10));
+  plug(pr, "MSG", rnd);
+  connectChain(hat, pr);
+  const r = cg().generate(w);
+  expect("random integer", r.code, ["import random", "print(random.randint(1, 10))"]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
