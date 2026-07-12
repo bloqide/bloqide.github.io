@@ -4,6 +4,10 @@ Offline, block-based **MicroPython IDE** for robots and boards — drag Scratch-
 blocks, generate readable MicroPython, and run it on hardware over **Web Serial**.
 Fully client-side; works offline after first load.
 
+**▶ Live: <https://bloqide.github.io/>** — use a Chromium browser (Chrome / Edge /
+Opera, desktop) since Web Serial is Chromium-only. Auto-deployed from `main` via
+GitHub Actions ([`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)).
+
 > Full design in **[ARCHITECTURE.md](./ARCHITECTURE.md)**. This is a minimal but
 > running skeleton that proves the core pipeline end-to-end.
 
