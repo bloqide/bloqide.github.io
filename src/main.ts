@@ -176,9 +176,22 @@ function highlightLinesFor(blockId: string | null): void {
   }
 }
 
+// Keep free-floating value blocks (unconnected reporters) drawn on top of other
+// blocks, so raising a selected/dragged block doesn't hide the small ones behind
+// it. Moving an SVG group to be its parent's last child renders it in front.
+function raiseFloatingValueBlocks(): void {
+  if (workspace.isDragging()) return;
+  for (const b of workspace.getTopBlocks(false)) {
+    if (!b.outputConnection) continue; // reporters only; leave statement stacks
+    const g = (b as Blockly.BlockSvg).getSvgRoot();
+    g.parentNode?.appendChild(g);
+  }
+}
+
 workspace.addChangeListener((e: Blockly.Events.Abstract) => {
   if (e.type === Blockly.Events.SELECTED) {
     highlightLinesFor((e as Blockly.Events.Selected).newElementId ?? null);
+    raiseFloatingValueBlocks();
   }
   if (
     e.type === Blockly.Events.BLOCK_MOVE ||
@@ -187,6 +200,9 @@ workspace.addChangeListener((e: Blockly.Events.Abstract) => {
     e.type === Blockly.Events.BLOCK_DELETE
   ) {
     regenerate();
+  }
+  if (e.type === Blockly.Events.BLOCK_MOVE || e.type === Blockly.Events.BLOCK_CREATE) {
+    raiseFloatingValueBlocks();
   }
 });
 
