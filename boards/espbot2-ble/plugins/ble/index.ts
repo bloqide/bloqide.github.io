@@ -1,4 +1,4 @@
-import type { BloqPlugin, GenContext } from "../../src/core/types";
+import type { BloqPlugin, GenContext } from "../../../../src/core/types";
 import type * as Blockly from "blockly";
 
 // Bluetooth-LE UART blocks for the EspBot board: advertise a Nordic UART

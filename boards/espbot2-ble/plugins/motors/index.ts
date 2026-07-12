@@ -1,4 +1,4 @@
-import type { BloqPlugin, GenContext } from "../../src/core/types";
+import type { BloqPlugin, GenContext } from "../../../../src/core/types";
 import type * as Blockly from "blockly";
 
 // Motor-driver blocks for the EspBot board. Enabled only for boards that list

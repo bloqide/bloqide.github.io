@@ -9,9 +9,9 @@ import { plugin as logic } from "../plugins/core-logic/index";
 import { plugin as math } from "../plugins/core-math/index";
 import { plugin as text } from "../plugins/core-text/index";
 import { plugin as variables } from "../plugins/core-variables/index";
-import { plugin as motors } from "../plugins/espbot-motors/index";
-import { plugin as ble } from "../plugins/espbot-ble/index";
-import board from "../boards/esp32-c3.json";
+import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
+import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
+import board from "../boards/esp32-c3/esp32-c3.json";
 
 // Register block definitions (resolve the pin-dropdown token to real options).
 const defs = new Map<string, BlockDef>();

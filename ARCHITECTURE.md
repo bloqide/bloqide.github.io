@@ -61,9 +61,12 @@ framework-agnostic and the core stays light.
 
 ## 3. Boards
 
-A board is **pure JSON data** (`boards/*.json`), so boards can be added by
-dropping a file in, or through an in-app Board Editor that writes the same shape
-to IndexedDB. See `src/core/types.ts` (`Board`) and `boards/esp32-c3.json`.
+A board is **self-contained** in `boards/<id>/`: the definition `<id>.json`
+(pure JSON data) plus its own `lib/` device drivers, `images/` photo,
+`plugins/` (board-owned block bundles), and `examples/`. Boards can be added by
+dropping a folder in, or through an in-app Board Editor that writes the same
+shape to IndexedDB. See `src/core/types.ts` (`Board`) and
+`boards/esp32-c3/esp32-c3.json`.
 
 Key insight: a board must be able to **change how blocks generate code**, because
 MicroPython dialects differ (a Pico uses `machine.Pin(0).value(1)`; a micro:bit
@@ -94,9 +97,12 @@ load; `overrides` = how blocks generate for this dialect. A block references a
 
 ## 4. Plugins (block bundles)
 
-A plugin is a **file-based TS module** (`plugins/<id>/index.ts`) exporting a
-`BloqPlugin`. Trusted, so full JS generators are allowed. See
-`src/core/types.ts` (`BloqPlugin`) and `plugins/core-*/`.
+A plugin is a **file-based TS module** exporting a `BloqPlugin`. Shared plugins
+live in `plugins/<id>/index.ts`; a board's own plugins live under
+`boards/<id>/plugins/<name>/index.ts`. Both are glob-loaded into one registry
+keyed by plugin `id`; a board activates the ones its `plugins` list names.
+Trusted, so full JS generators are allowed. A plugin's `lib`/`image`/`example`
+files are referenced by basename. See `src/core/types.ts` (`BloqPlugin`).
 
 A plugin bundles: `blocks` (Blockly JSON defs), `generators` (JS function *or*
 template string per block), a `toolbox` category contribution, `requires`

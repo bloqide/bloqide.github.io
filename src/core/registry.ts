@@ -18,7 +18,8 @@ let _plugins: BloqPlugin[] | null = null;
 
 function boards(): Board[] {
   if (_boards) return _boards;
-  const mods = import.meta.glob<Board>("../../boards/*.json", { eager: true });
+  // Each board is self-contained in boards/<id>/<id>.json.
+  const mods = import.meta.glob<Board>("../../boards/*/*.json", { eager: true });
   _boards = Object.values(mods).map(
     (m) => (m as unknown as { default?: Board }).default ?? (m as unknown as Board)
   );
@@ -27,9 +28,12 @@ function boards(): Board[] {
 
 function plugins(): BloqPlugin[] {
   if (_plugins) return _plugins;
-  const mods = import.meta.glob<{ plugin: BloqPlugin }>("../../plugins/*/index.ts", {
-    eager: true,
-  });
+  // Shared plugins live in plugins/<id>/; board-owned plugins in
+  // boards/<id>/plugins/<name>/. Both merge into one registry keyed by plugin id.
+  const mods = import.meta.glob<{ plugin: BloqPlugin }>(
+    ["../../plugins/*/index.ts", "../../boards/*/plugins/*/index.ts"],
+    { eager: true }
+  );
   _plugins = Object.values(mods).map((m) => m.plugin);
   return _plugins;
 }

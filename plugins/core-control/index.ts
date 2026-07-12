@@ -125,13 +125,13 @@ export const plugin: BloqPlugin = {
       id: "blink",
       name: "Blink",
       description: "Toggle the onboard LED in a loop",
-      file: "examples/core/blink.bloq",
+      file: "blink.bloq",
     },
     {
       id: "two-blinkers",
       name: "Two blinkers",
       description: "Two independent blink loops (scheduler)",
-      file: "examples/core/two-stacks.bloq",
+      file: "two-stacks.bloq",
     },
   ],
 

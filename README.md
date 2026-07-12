@@ -45,24 +45,33 @@ npx tsx scripts/codegen.test.ts   # headless codegen checks (no browser)
 ## Layout
 
 ```
-boards/            board definitions (JSON)         — add a board = drop a file
-plugins/           block bundles (TS modules)       — add blocks = drop a folder
-  core-control/    hats, loops, wait, raw-python
-  core-gpio/       pin write, onboard LED
+boards/<id>/       self-contained board                — add a board = drop a folder
+  <id>.json        definition (pins, capabilities, plugins)
+  lib/*.py         device drivers shipped to /lib
+  images/*         board photo (icon.imageRef)
+  plugins/*/       board-owned block bundles
+  examples/*.bloq  board-specific example projects
+plugins/<id>/      shared block bundles (TS modules)   — add blocks = drop a folder
+  index.ts         BloqPlugin: blocks + generators
+  examples/*.bloq  plugin-provided example projects
 src/
   core/            types, registry, blocks, codegen
   runtime/         bloq.py (cooperative scheduler, shipped to device)
   serial/          Web Serial + raw-REPL driver
   project/         .bloq model, IndexedDB store, import/export
-  ui/              xterm terminal, project library dialog
+  ui/              xterm terminal, dialogs (library, boards, examples)
   main.ts          app wiring
-examples/          example projects (.bloq)
 scripts/           headless tests
 ```
 
+Board/plugin `lib`, `images`, and `examples` files are referenced by **basename**
+(e.g. `"file": "blink.bloq"`), resolved from wherever they're bundled.
+
 ## Adding things
 
-- **A board:** copy `boards/esp32-c3.json`, edit pins/capabilities/overrides.
+- **A board:** copy a `boards/<id>/` folder, rename it, edit `<id>.json`
+  (pins/capabilities/plugins). Drop drivers in `lib/`, a photo in `images/`,
+  board-only blocks in `plugins/`, and starters in `examples/`.
 - **A block bundle:** copy a `plugins/core-*/` folder; export a `BloqPlugin`
   with `blocks` + `generators`. It appears in the toolbox for any board that
   lists it and satisfies its `requires` capabilities.

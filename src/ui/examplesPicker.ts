@@ -6,15 +6,14 @@ import type { BoardExampleRef } from "../core/types";
 // The Examples dialog: full-project templates for the current board (and its
 // active plugins). Opening one loads its bundled .bloq into a fresh project.
 
-// Example .bloq files -> bundled URLs, keyed by their "examples/..." path so a
-// board/plugin's `file` reference resolves.
-const exampleFiles = import.meta.glob<string>("../../examples/**/*.bloq", {
-  query: "?url",
-  import: "default",
-  eager: true,
-});
-const urlByPath = new Map<string, string>(
-  Object.entries(exampleFiles).map(([p, url]) => [p.replace(/^(\.\.\/)+/, ""), url])
+// Example .bloq files -> bundled URLs, keyed by filename. Plugins keep theirs in
+// plugins/<id>/examples/; boards in boards/<id>/examples/.
+const exampleFiles = import.meta.glob<string>(
+  ["../../plugins/*/examples/*.bloq", "../../boards/*/examples/*.bloq"],
+  { query: "?url", import: "default", eager: true }
+);
+const urlByFile = new Map<string, string>(
+  Object.entries(exampleFiles).map(([p, url]) => [p.split("/").pop()!, url])
 );
 
 export interface ExamplesHandlers {
@@ -34,7 +33,7 @@ export function initExamplesPicker(handlers: ExamplesHandlers): { open: () => vo
   }
 
   async function openExample(ref: BoardExampleRef): Promise<void> {
-    const url = urlByPath.get(ref.file);
+    const url = urlByFile.get(ref.file);
     if (!url) {
       alert(`Example file not found: ${ref.file}`);
       return;

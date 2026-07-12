@@ -58,7 +58,7 @@
       "id": "ble-robot",
       "name": "BLE robot",
       "description": "Drive with a phone gamepad over Bluetooth",
-      "file": "examples/espbot2-ble/ble-robot.bloq"
+      "file": "ble-robot.bloq"
     }
   ],
 

@@ -17,10 +17,10 @@ import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
 import type { ProjectRecord } from "./project/types";
 import type { Board } from "./core/types";
-// Device libraries shippable to /lib. Any src/runtime/*.py is discoverable by
-// dest path; codegen (scheduler) and block generators declare which they need
-// via requiredLibraries. Keyed "/lib/<name>.py".
-const libModules = import.meta.glob<string>("./runtime/*.py", {
+// Device libraries shippable to /lib: core runtime (src/runtime/*.py) plus each
+// board's own drivers (boards/<id>/lib/*.py). Codegen (scheduler) and block
+// generators declare which they need via requiredLibraries. Keyed "/lib/<name>.py".
+const libModules = import.meta.glob<string>(["./runtime/*.py", "../boards/*/lib/*.py"], {
   query: "?raw",
   import: "default",
   eager: true,

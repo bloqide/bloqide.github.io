@@ -2,8 +2,9 @@ import { allBoards } from "../core/registry";
 import { faClass } from "../core/blocks";
 import type { Board, Capability } from "../core/types";
 
-// Board photos, resolved to bundled URLs and keyed by filename (icon.imageRef).
-const boardImages = import.meta.glob<string>("../../boards/images/*.{jpg,jpeg,png,svg,webp}", {
+// Board photos (boards/<id>/images/*), resolved to bundled URLs and keyed by
+// filename (icon.imageRef).
+const boardImages = import.meta.glob<string>("../../boards/*/images/*.{jpg,jpeg,png,svg,webp}", {
   query: "?url",
   import: "default",
   eager: true,
