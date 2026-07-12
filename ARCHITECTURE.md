@@ -291,14 +291,22 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 
 **Working & verified (typecheck + build + headless codegen tests):**
 
-- ESP32-C3 board definition, glob-loaded registry (boards + plugins).
-- `core-control` (hats, forever, repeat, wait, raw-python) and `core-gpio`
-  (pin write, onboard LED toggle) plugins.
-- CodeGen: simple ↔ scheduler auto-mode, header dedup, pin-setup dedup,
-  bidirectional source map. (`scripts/codegen.test.ts` — 4 checks pass.)
-- Cooperative scheduler runtime.
-- Blockly workspace (zelos, grid, zoom/pan), toolbox from plugins, live codegen,
-  Split view with source-map highlighting, detach/revert.
+- **Boards** (self-contained in `boards/<id>/`): ESP32-C3, ESP32, RP2040, and a
+  custom EspBot (motors + BLE). Glob-loaded registry over `boards/*/*.json`,
+  `plugins/*` and `boards/*/plugins/*`.
+- **Block library** — `core-control` (hats, loops, waits, if / if-else-if
+  mutator, wait-until), `core-gpio`, `core-logic`, `core-math` (arithmetic +
+  bitwise + random), `core-text` (literals, variadic + fixed join, print,
+  resizable comment), `core-variables`; plus board-owned `espbot-motors` /
+  `espbot-ble`. Operators as dropdown blocks with preset variants; toolbox
+  preset snippets.
+- CodeGen: simple ↔ scheduler auto-mode, header/pin-setup dedup, bidirectional
+  source map, setup-hat globals, unknown-block detection.
+  (`scripts/codegen.test.ts` — 28 checks pass.)
+- Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
+- Blockly workspace (custom zelos renderer), toolbox from plugins with a
+  drag-out-hides-flyout tweak, live codegen, Split view (resizable) with
+  source-map highlighting, detach/revert.
 - Serial (Web Serial + raw REPL: run / save-to-board / stop / delta lib sync) +
   xterm terminal.
 - PWA offline precache.
@@ -309,13 +317,14 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   tabs.
 - **Multi-device**: shared `ConnectionPool`, highlighted device drives Run/Save,
   per-project session link, multi-pane terminal (rename / reconnect / close).
+- **Board picker** (grid of cards, photo/icon + feature chips) and **Examples**
+  dialog (full-project templates from board + active plugins).
 
 **Designed, not yet built (clean add-ons — no foundation changes):**
 
 - In-app wizard block editor; reusable "make a block" (collapse/unroll/promote);
-  in-app Board Editor; examples gallery (files exist, loader not wired);
-  board/plugin icons in UI; block search; i18n; traceback → block highlighting;
+  in-app Board Editor; block search; i18n; traceback → block highlighting;
   device-side sync manifest; raw-paste flow control; side-by-side project compare
-  (multi-workspace prerequisite now met); additional boards/plugins
-  (I²C/SPI/PWM/NeoPixel).
+  (multi-workspace prerequisite now met); more hardware block bundles
+  (I²C / SPI / NeoPixel) and boards.
 ```
