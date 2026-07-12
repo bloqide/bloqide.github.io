@@ -21,11 +21,10 @@ import type { Board } from "./core/types";
 // Device libraries shippable to /lib: core runtime (src/runtime/*.py) plus each
 // board's own drivers (boards/<id>/lib/*.py). Codegen (scheduler) and block
 // generators declare which they need via requiredLibraries. Keyed "/lib/<name>.py".
-const libModules = import.meta.glob<string>(["./runtime/*.py", "../boards/*/lib/*.py"], {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
+const libModules = import.meta.glob<string>(
+  ["./runtime/*.py", "../plugins/*/lib/*.py", "../boards/*/lib/*.py"],
+  { query: "?raw", import: "default", eager: true }
+);
 const libByDest = new Map<string, string>(
   Object.entries(libModules).map(([path, src]) => [`/lib/${path.split("/").pop()}`, src])
 );
