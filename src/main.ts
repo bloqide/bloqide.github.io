@@ -16,7 +16,17 @@ import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
 import type { ProjectRecord } from "./project/types";
 import type { Board } from "./core/types";
-import bloqSource from "./runtime/bloq.py?raw";
+// Device libraries shippable to /lib. Any src/runtime/*.py is discoverable by
+// dest path; codegen (scheduler) and block generators declare which they need
+// via requiredLibraries. Keyed "/lib/<name>.py".
+const libModules = import.meta.glob<string>("./runtime/*.py", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+const libByDest = new Map<string, string>(
+  Object.entries(libModules).map(([path, src]) => [`/lib/${path.split("/").pop()}`, src])
+);
 
 const DEFAULT_BOARD = "esp32-c3";
 
@@ -368,11 +378,13 @@ connectBtn.addEventListener("click", async () => {
   }
 });
 
-// Files this program needs on the device (runtime lib only when scheduler used).
+// Device files this program needs — the libraries codegen/block generators
+// declared (scheduler runtime, motor/BLE drivers, …), resolved to their source.
 function requiredFiles(): { dest: string; content: string }[] {
   const files: { dest: string; content: string }[] = [];
-  if (lastResult?.requiredLibraries.has("/lib/bloq.py")) {
-    files.push({ dest: "/lib/bloq.py", content: bloqSource });
+  for (const dest of lastResult?.requiredLibraries ?? []) {
+    const content = libByDest.get(dest);
+    if (content) files.push({ dest, content });
   }
   return files;
 }
