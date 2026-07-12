@@ -10,6 +10,7 @@ import { ConnectionPool } from "./serial/connectionManager";
 import type { SerialService } from "./serial/serialService";
 import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
+import { initBoardPicker } from "./ui/boardPicker";
 import { setTextAreaResizeHandler } from "./ui/fieldTextArea";
 import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
@@ -610,6 +611,18 @@ const library = initLibrary({
 });
 
 document.getElementById("btn-open")!.addEventListener("click", () => library.open());
+
+// Board picker — clicking the board label swaps the current project's board.
+const boardPicker = initBoardPicker({
+  currentId: () => board.id,
+  onSelect: (id) => {
+    if (id === board.id) return;
+    useBoard(id);
+    current.board = board.id;
+    regenerate(); // recompute for the new board + autosave
+  },
+});
+document.getElementById("board-label")!.addEventListener("click", () => boardPicker.open());
 document.getElementById("btn-new")!.addEventListener("click", () =>
   openProject(newRecord("Untitled", DEFAULT_BOARD))
 );

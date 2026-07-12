@@ -37,7 +37,9 @@ body {
   border-bottom: 1px solid var(--line);
 }
 #menubar .brand { font-weight: 700; color: var(--accent); }
-#menubar .board-label { color: var(--muted); font-size: 12px; }
+#menubar .board-label { color: var(--muted); font-size: 12px; cursor: pointer; }
+#menubar .board-label:hover { color: var(--fg); }
+#menubar .board-label::after { content: " ▾"; opacity: 0.6; }
 #menubar .spacer { flex: 1; }
 #menubar .group { display: flex; gap: 4px; }
 button {
@@ -231,6 +233,37 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
 .lib-sub { font-size: 12px; color: var(--muted); }
 .lib-actions { display: flex; gap: 4px; flex-shrink: 0; }
 button.danger { border-color: #f38ba8; color: #f38ba8; }
+
+/* Board picker dialog */
+#board-dialog { width: 640px; }
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 14px;
+  max-height: 62vh;
+  overflow: auto;
+}
+.board-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel);
+  color: var(--fg); cursor: pointer; text-align: center;
+}
+.board-card:hover { border-color: var(--accent); background: #313244; }
+.board-card.current { outline: 2px solid var(--accent); }
+.board-icon {
+  width: 56px; height: 56px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: #fff;
+}
+.board-name { font-weight: 600; }
+.board-mcu { font-size: 11px; color: var(--muted); }
+.board-feats { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
+.feat {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: var(--bg2); border: 1px solid var(--line); color: var(--muted);
+}
 button.danger:hover { background: #f38ba8; color: #11111b; }
 #menubar button i { font-size: 12px; }
 
