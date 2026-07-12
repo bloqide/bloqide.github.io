@@ -303,6 +303,13 @@ button.danger:hover { background: #f38ba8; color: #11111b; }
 
 /* Toolbox category rail — dark, large icon over readable label */
 .blocklyToolbox, .blocklyToolboxDiv { background: var(--bg2) !important; }
+
+/* Bold, prominent labels for the START / SETUP hat blocks. */
+.bloq-hat-label { font-weight: 800 !important; letter-spacing: 0.5px; }
+
+/* Hide the pinned flyout while a block is being dragged out of it. */
+.bloq-hide-flyout .blocklyFlyout,
+.bloq-hide-flyout .blocklyFlyoutScrollbar { visibility: hidden !important; }
 .blocklyTreeRow {
   display: flex !important;
   flex-direction: column !important;

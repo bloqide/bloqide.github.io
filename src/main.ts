@@ -76,6 +76,70 @@ const workspace = Blockly.inject("blockly", {
 const flyout = workspace.getFlyout();
 if (flyout) (flyout as unknown as { autoClose: boolean }).autoClose = false;
 
+// Drag-out UX: the flyout is pinned open, so it covers the drop area. While
+// dragging a block out of it, hide it once the pointer crosses its right edge
+// (via a CSS class on the container, so a Blockly re-render can't undo it —
+// purely visual, the flyout's own state is untouched so the drag continues),
+// and restore it when the block is released.
+{
+  const injDiv = document.getElementById("blockly")!;
+  const flyoutSvg = (): SVGGraphicsElement | null => {
+    const fl = workspace.getFlyout() as unknown as { svgGroup_?: SVGGraphicsElement } | null;
+    return fl?.svgGroup_ ?? document.querySelector<SVGGraphicsElement>(".blocklyFlyout");
+  };
+  const flyoutObj = () =>
+    workspace.getFlyout() as unknown as { getClientRect?: (() => unknown) | undefined } | null;
+  let armed = false; // pointer went down inside the flyout — a drag-out may follow
+  let hidden = false;
+  const hide = () => {
+    injDiv.classList.add("bloq-hide-flyout");
+    // Also neutralize the flyout's delete zone so dropping where the hidden
+    // flyout was places the block instead of deleting it. Blockly caches the
+    // drag-target rects at drag start (when the flyout was visible), so null its
+    // getClientRect and rebuild that cache.
+    const fl = flyoutObj();
+    if (fl) fl.getClientRect = () => null;
+    workspace.recordDragTargets();
+    hidden = true;
+  };
+  const restore = () => {
+    if (hidden) {
+      injDiv.classList.remove("bloq-hide-flyout");
+      const fl = flyoutObj();
+      if (fl) delete fl.getClientRect; // revert to the prototype method
+      workspace.recordDragTargets();
+      hidden = false;
+    }
+    armed = false;
+  };
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const r = flyoutSvg()?.getBoundingClientRect();
+      armed =
+        !!r && r.width > 0 &&
+        e.clientX >= r.left && e.clientX <= r.right &&
+        e.clientY >= r.top && e.clientY <= r.bottom;
+    },
+    true
+  );
+  document.addEventListener(
+    "pointermove",
+    (e) => {
+      if (!armed || hidden) return;
+      const r = flyoutSvg()?.getBoundingClientRect();
+      if (r && e.clientX > r.right) hide();
+    },
+    true
+  );
+  // Defer restore past Blockly's own drop handling (which runs during this same
+  // pointerup): restoring the flyout's delete zone before the drop is decided is
+  // exactly what was deleting the block.
+  const deferRestore = () => setTimeout(restore, 0);
+  document.addEventListener("pointerup", deferRestore, true);
+  document.addEventListener("pointercancel", deferRestore, true);
+}
+
 // Supply the Variables category flyout (get/set blocks + "Create variable"
 // button). Blockly registers this by default, but do it explicitly so the
 // custom category in buildToolbox always resolves.

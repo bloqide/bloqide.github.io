@@ -157,9 +157,10 @@ export const plugin: BloqPlugin = {
       kind: "hat",
       json: {
         type: "when_started",
-        message0: "when started",
+        message0: "%1",
+        args0: [{ type: "field_label", name: "LABEL", text: "START", class: "bloq-hat-label" }],
         nextStatement: null,
-        colour: 210,
+        colour: "#40c057",
         tooltip: "Program entry point. Multiple of these run concurrently.",
       },
     },
@@ -169,7 +170,8 @@ export const plugin: BloqPlugin = {
       kind: "hat",
       json: {
         type: "on_setup",
-        message0: "on setup",
+        message0: "%1",
+        args0: [{ type: "field_label", name: "LABEL", text: "SETUP", class: "bloq-hat-label" }],
         nextStatement: null,
         colour: 260,
         tooltip:
