@@ -49,6 +49,7 @@
     "core-text",
     "core-variables",
     "core-neopixel",
+    "core-sensors",
     "espbot-motors",
     "espbot-ble"
   ],

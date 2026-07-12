@@ -12,6 +12,7 @@ import { plugin as variables } from "../plugins/core-variables/index";
 import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
 import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
 import { plugin as neopixel } from "../plugins/core-neopixel/index";
+import { plugin as sensors } from "../plugins/core-sensors/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
 // Register block definitions (resolve the pin-dropdown tokens to real options).
@@ -23,7 +24,7 @@ const pinTokens: Record<string, number[]> = {
 };
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
-for (const p of [control, gpio, logic, math, text, variables, motors, ble, neopixel]) {
+for (const p of [control, gpio, logic, math, text, variables, motors, ble, neopixel, sensors]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     const json = JSON.parse(JSON.stringify(def.json));
     for (const k of Object.keys(json)) {
@@ -599,6 +600,21 @@ function num(w: Blockly.Workspace, n: number) {
     "np_4[0] = (255, 0, 0)",
     "np_4.write()",
   ]);
+}
+
+// --- Test 28: ultrasonic sensor read ships the driver ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const us = w.newBlock("ultrasonic_read");
+  plug(us, "TRIG", num(w, 2));
+  plug(us, "ECHO", num(w, 3));
+  plug(pr, "MSG", us);
+  connectChain(hat, pr);
+  const r = cg().generate(w);
+  expect("ultrasonic read", r.code, ["import Ultrasonic", "print(Ultrasonic.read(2, 3))"]);
+  console.assert(r.requiredLibraries.has("/lib/Ultrasonic.py"), "Ultrasonic.py required");
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);

@@ -41,7 +41,7 @@
   "onboard": [{ "type": "led", "pin": 2, "name": "onboard LED (GPIO2)" }],
 
   "capabilities": ["gpio", "adc", "pwm", "dac", "i2c", "spi", "uart", "wifi", "ble", "neopixel"],
-  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables", "core-neopixel"],
+  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables", "core-neopixel", "core-sensors"],
 
   "libraries": [],
   "examples": [],
