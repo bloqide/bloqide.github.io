@@ -242,6 +242,7 @@ function revert(): void {
 // ---- View switching ----
 const blocklyPane = document.getElementById("blockly")!;
 const codePane = document.getElementById("code-pane")!;
+const splitResizer = document.getElementById("split-resizer")!;
 document.querySelectorAll<HTMLButtonElement>(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".view-btn").forEach((b) => b.classList.remove("active"));
@@ -251,8 +252,28 @@ document.querySelectorAll<HTMLButtonElement>(".view-btn").forEach((btn) => {
     codePane.classList.toggle("hidden", view === "blocks");
     codePane.classList.toggle("split", view === "split");
     blocklyPane.classList.toggle("split", view === "split");
+    splitResizer.classList.toggle("hidden", view !== "split");
     Blockly.svgResize(workspace);
   });
+});
+
+// Drag the split handle to resize the code pane (grows leftward from the right).
+splitResizer.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  const work = document.getElementById("work")!;
+  const onMove = (ev: MouseEvent) => {
+    const rect = work.getBoundingClientRect();
+    const codeWidth = rect.right - ev.clientX;
+    const clamped = Math.max(200, Math.min(rect.width - 200, codeWidth));
+    codePane.style.flex = `0 0 ${clamped}px`;
+    Blockly.svgResize(workspace);
+  };
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  };
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
 });
 
 // ---- Terminal + connection pool (shared across projects) ----

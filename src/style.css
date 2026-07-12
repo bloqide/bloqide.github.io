@@ -102,8 +102,21 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 #work { grid-area: work; position: relative; display: flex; min-width: 0; min-height: 0; }
 .pane { flex: 1; min-width: 0; height: 100%; }
 .pane.hidden { display: none; }
-.pane.split { flex: 1 1 50%; }
+/* Split view: blocks fill the space, code pane defaults to a third (drag to
+   override via inline flex-basis). */
+#blockly.split { flex: 1 1 auto; }
+#code-pane.split { flex: 0 0 33.33%; }
 #blockly { height: 100%; }
+
+/* Vertical drag handle between the blocks and code panes (split view). */
+#split-resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--line);
+  z-index: 2;
+}
+#split-resizer.hidden { display: none; }
+#split-resizer:hover { background: var(--accent); opacity: 0.6; }
 
 /* Code pane */
 #code-pane { display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); }
