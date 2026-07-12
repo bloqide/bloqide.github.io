@@ -166,8 +166,16 @@ export class SerialService {
     }
   }
 
-  /** Send code through raw REPL and execute it. */
-  private async execRaw(code: string): Promise<void> {
+  /**
+   * Send code through raw REPL and execute it.
+   *
+   * `OK` is only the *compile* acknowledgment — the device sends it before the
+   * code actually runs. For finite scripts (file writes) pass awaitCompletion so
+   * we block until execution truly finishes, otherwise the next execRaw's Ctrl-C
+   * would interrupt a still-running write before it commits to flash. Programs
+   * that loop forever (run()) must NOT wait — there is no completion marker.
+   */
+  private async execRaw(code: string, awaitCompletion = false): Promise<void> {
     await this.write(CTRL_C + CTRL_C); // interrupt anything running
     this.rx = "";
     await this.write(CTRL_A); // enter raw REPL
@@ -176,7 +184,26 @@ export class SerialService {
     await this.write(code);
     await this.write(CTRL_D); // execute
     await this.waitFor("OK"); // compiled ok
+    if (awaitCompletion) {
+      // Raw REPL frames a finished submission as: OK<stdout>\x04<stderr>\x04>
+      // Two 0x04 markers means execution (not just compilation) is complete.
+      await this.waitForCount("\x04", 2);
+      const stderr = this.rx.split("\x04")[1]?.trim();
+      if (stderr) {
+        await this.write(CTRL_B);
+        throw new Error(stderr.split("\r\n").pop() || stderr);
+      }
+    }
     await this.write(CTRL_B); // back to friendly REPL
+  }
+
+  /** Wait until `token` has appeared at least `n` times in the receive buffer. */
+  private async waitForCount(token: string, n: number, timeoutMs = 8000): Promise<void> {
+    const start = performance.now();
+    while ((this.rx.split(token).length - 1) < n) {
+      if (performance.now() - start > timeoutMs) throw new Error(`Timeout waiting for device`);
+      await delay(15);
+    }
   }
 
   /** Run the program now (RAM only; flash main.py untouched). */
@@ -230,7 +257,7 @@ export class SerialService {
     ]
       .filter(Boolean)
       .join("\n");
-    await this.execRaw(script);
+    await this.execRaw(script, true); // wait for the write to commit before returning
   }
 }
 
