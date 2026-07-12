@@ -378,5 +378,34 @@ function num(w: Blockly.Workspace, n: number) {
   expect("random integer", r.code, ["import random", "print(random.randint(1, 10))"]);
 }
 
+// --- Test 18: variadic text join with +/- mutator (default 2 slots) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const join = w.newBlock("text_join"); // mutator installs ADD0, ADD1
+  const lit = w.newBlock("text_literal");
+  lit.setFieldValue("n=", "TEXT");
+  plug(join, "ADD0", lit);
+  plug(join, "ADD1", num(w, 5));
+  plug(pr, "MSG", join);
+  connectChain(hat, pr);
+  expect("variadic text join", cg().generate(w).code, ['print((str("n=") + str(5)))']);
+}
+// A third slot added via the mutator lands in the generated join.
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const join = w.newBlock("text_join") as any;
+  join.plus_(); // now 3 slots
+  plug(join, "ADD0", num(w, 1));
+  plug(join, "ADD1", num(w, 2));
+  plug(join, "ADD2", num(w, 3));
+  plug(pr, "MSG", join);
+  connectChain(hat, pr);
+  expect("text join +1 slot", cg().generate(w).code, ["print((str(1) + str(2) + str(3)))"]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

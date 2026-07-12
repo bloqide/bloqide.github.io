@@ -1,9 +1,79 @@
+import * as Blockly from "blockly";
 import type { BloqPlugin, GenContext } from "../../src/core/types";
-import type * as Blockly from "blockly";
 
 // Text: string literals, concatenation, and printing to the serial terminal.
 // `text_literal`/`text_join` are value blocks (return an expression);
 // `print_terminal` is a statement (emits a `print(...)` line).
+
+// --- Variadic-join mutator -------------------------------------------------
+// A self-contained mutator for text_join: instead of Blockly's gear/flyout
+// (which shows container blocks and confuses non-devs), it puts inline + / −
+// buttons on the block that add/remove item slots (ADD0, ADD1, …), stacked
+// vertically. State is one number (itemCount_), serialized via saveExtraState.
+
+const JOIN_MUTATOR = "bloq_join_mutator";
+const svg = (path: string) =>
+  "data:image/svg+xml;base64," +
+  btoa(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15">` +
+      `<path d="${path}" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>`
+  );
+const PLUS_ICON = svg("M7.5 3.4v8.2M3.4 7.5h8.2");
+const MINUS_ICON = svg("M3.4 7.5h8.2");
+
+// A mutator (not a plain extension — Blockly only allows serialization state on
+// mutators). No compose/decompose means no gear icon; the + / − buttons drive it.
+const JOIN_MIXIN = {
+  itemCount_: 2,
+
+  saveExtraState(this: any) {
+    return { itemCount: this.itemCount_ };
+  },
+  loadExtraState(this: any, state: any) {
+    this.itemCount_ = state?.itemCount ?? 2;
+    this.updateShape_();
+  },
+
+  updateShape_(this: any) {
+    // Header row: "join" label + the two buttons (created once).
+    if (!this.getInput("HEADER")) {
+      this.appendDummyInput("HEADER")
+        .appendField("join")
+        .appendField(new Blockly.FieldImage(PLUS_ICON, 15, 15, "+", () => this.plus_()), "PLUS")
+        .appendField(new Blockly.FieldImage(MINUS_ICON, 15, 15, "−", () => this.minus_()), "MINUS");
+    }
+    // Add / remove item slots to match the count.
+    for (let i = 0; i < this.itemCount_; i++) {
+      if (!this.getInput("ADD" + i)) this.appendValueInput("ADD" + i);
+    }
+    for (let i = this.itemCount_; this.getInput("ADD" + i); i++) this.removeInput("ADD" + i);
+  },
+
+  // Change the item count as an undoable, listener-visible mutation.
+  changeItems_(this: any, n: number) {
+    const before = JSON.stringify(this.saveExtraState());
+    this.itemCount_ = n;
+    this.updateShape_();
+    const after = JSON.stringify(this.saveExtraState());
+    if (before !== after) {
+      Blockly.Events.fire(new Blockly.Events.BlockChange(this, "mutation", null, before, after));
+    }
+  },
+  plus_(this: any) {
+    this.changeItems_(this.itemCount_ + 1);
+  },
+  minus_(this: any) {
+    if (this.itemCount_ > 1) this.changeItems_(this.itemCount_ - 1); // keep at least one slot
+  },
+};
+
+if (!Blockly.Extensions.isRegistered(JOIN_MUTATOR)) {
+  Blockly.Extensions.registerMutator(JOIN_MUTATOR, JOIN_MIXIN, function (this: any) {
+    this.updateShape_();
+  });
+}
+
+// ---------------------------------------------------------------------------
 
 export const plugin: BloqPlugin = {
   id: "core-text",
@@ -22,25 +92,17 @@ export const plugin: BloqPlugin = {
         colour: 45,
       },
     },
+    // Variadic string join with inline + / − buttons (see JOIN_MUTATOR above).
+    // Slots are named ADD0, ADD1, … and hold any value (text or number).
     text_join: {
       kind: "value",
       json: {
         type: "text_join",
-        message0: "%1 join %2",
-        args0: [
-          { type: "input_value", name: "A" },
-          { type: "input_value", name: "B" },
-        ],
-        inputsInline: true,
+        message0: "",
         output: null,
         colour: 45,
-        tooltip: "Join two values into one string.",
-      },
-      toolbox: {
-        inputs: {
-          A: { shadow: { type: "text_literal", fields: { TEXT: "hello " } } },
-          B: { shadow: { type: "text_literal", fields: { TEXT: "world" } } },
-        },
+        mutator: JOIN_MUTATOR,
+        tooltip: "Join values into one string. Use + / − to add or remove slots.",
       },
     },
     print_terminal: {
@@ -65,8 +127,14 @@ export const plugin: BloqPlugin = {
     // Python string literal — JSON.stringify escapes quotes/backslashes/newlines
     // into a form MicroPython accepts verbatim.
     text_literal: (block: Blockly.Block) => JSON.stringify(String(block.getFieldValue("TEXT") ?? "")),
-    text_join: (block: Blockly.Block, ctx: GenContext) =>
-      `(str(${ctx.value(block, "A", "''")}) + str(${ctx.value(block, "B", "''")}))`,
+    text_join: (block: Blockly.Block, ctx: GenContext) => {
+      // Concatenate every item slot, coercing each to str so numbers join too.
+      const parts: string[] = [];
+      for (let i = 0; block.getInput(`ADD${i}`); i++) {
+        parts.push(`str(${ctx.value(block, `ADD${i}`, "''")})`);
+      }
+      return parts.length ? `(${parts.join(" + ")})` : "''";
+    },
     print_terminal: (block: Blockly.Block, ctx: GenContext) => {
       ctx.line(`print(${ctx.value(block, "MSG", "''")})`, block.id);
     },
