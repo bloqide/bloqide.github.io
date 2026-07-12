@@ -1,0 +1,50 @@
+{
+  "id": "esp32",
+  "name": "ESP32",
+  "meta": { "vendor": "Espressif", "mcu": "esp32" },
+  "icon": { "preset": "esp32" },
+
+  "connection": {
+    "baud": 115200,
+    "replMode": "raw-paste",
+    "resetOnConnect": false,
+    "eol": "\r\n"
+  },
+
+  "runtime": {
+    "dialect": "machine",
+    "imports": ["from machine import Pin"]
+  },
+
+  "pins": {
+    "digital": [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33],
+    "analog": [32, 33, 34, 35, 36, 39],
+    "pwm": [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33],
+    "dac": [25, 26],
+    "touch": [4, 12, 13, 14, 15, 27, 32, 33],
+    "aliases": { "LED": 2 }
+  },
+
+  "buses": {
+    "i2c": [{ "id": 0, "scl": 22, "sda": 21, "freq": 400000 }],
+    "spi": [{ "id": 1, "sck": 18, "mosi": 23, "miso": 19 }],
+    "uart": [{ "id": 2, "tx": 17, "rx": 16 }]
+  },
+
+  "constraints": {
+    "adcBits": 12,
+    "adcVref": 3.3,
+    "pwmFreqHz": [1, 40000000],
+    "logicVoltage": 3.3
+  },
+
+  "onboard": [{ "type": "led", "pin": 2, "name": "onboard LED (GPIO2)" }],
+
+  "capabilities": ["gpio", "adc", "pwm", "dac", "i2c", "spi", "uart", "wifi", "ble"],
+  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables"],
+
+  "libraries": [],
+  "examples": [],
+
+  "overrides": {}
+}

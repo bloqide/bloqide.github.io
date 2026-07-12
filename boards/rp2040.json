@@ -1,0 +1,50 @@
+{
+  "id": "rp2040",
+  "name": "Raspberry Pi Pico",
+  "meta": { "vendor": "Raspberry Pi", "mcu": "rp2040" },
+  "icon": { "preset": "rp2040" },
+
+  "connection": {
+    "baud": 115200,
+    "replMode": "raw-paste",
+    "resetOnConnect": false,
+    "eol": "\r\n"
+  },
+
+  "runtime": {
+    "dialect": "machine",
+    "imports": ["from machine import Pin"]
+  },
+
+  "pins": {
+    "digital": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 26, 27, 28],
+    "analog": [26, 27, 28],
+    "pwm": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 26, 27, 28],
+    "dac": [],
+    "touch": [],
+    "aliases": { "LED": 25 }
+  },
+
+  "buses": {
+    "i2c": [{ "id": 0, "scl": 5, "sda": 4, "freq": 400000 }],
+    "spi": [{ "id": 0, "sck": 18, "mosi": 19, "miso": 16 }],
+    "uart": [{ "id": 0, "tx": 0, "rx": 1 }]
+  },
+
+  "constraints": {
+    "adcBits": 12,
+    "adcVref": 3.3,
+    "pwmFreqHz": [8, 62500000],
+    "logicVoltage": 3.3
+  },
+
+  "onboard": [{ "type": "led", "pin": 25, "name": "onboard LED (GP25)" }],
+
+  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart"],
+  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables"],
+
+  "libraries": [],
+  "examples": [],
+
+  "overrides": {}
+}
