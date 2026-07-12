@@ -31,10 +31,27 @@ class OverlayMetricsManager extends Blockly.MetricsManager {
   }
 }
 
+// Custom zelos renderer: cap how round tall value/reporter block ends get.
+// Zelos rounds reporter ends to min(height/2, MAX_DYNAMIC_CONNECTION_SHAPE_WIDTH),
+// which defaults to 12*GRID_UNIT (48px) — too bulbous on tall blocks like the
+// variadic text join. Halve the cap so tall value blocks match short ones.
+class BloqConstantProvider extends Blockly.zelos.ConstantProvider {
+  constructor() {
+    super();
+    this.MAX_DYNAMIC_CONNECTION_SHAPE_WIDTH = 6 * this.GRID_UNIT;
+  }
+}
+class BloqRenderer extends Blockly.zelos.Renderer {
+  protected override makeConstants_(): BloqConstantProvider {
+    return new BloqConstantProvider();
+  }
+}
+Blockly.blockRendering.register("bloq-zelos", BloqRenderer);
+
 // ---- Blockly workspace ----
 const workspace = Blockly.inject("blockly", {
   toolbox: buildToolbox(board),
-  renderer: "zelos",
+  renderer: "bloq-zelos",
   grid: { spacing: 24, length: 3, colour: "#313244", snap: true },
   zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 3, minScale: 0.3 },
   move: { scrollbars: true, drag: true, wheel: true },
