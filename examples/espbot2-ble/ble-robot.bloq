@@ -1,0 +1,1011 @@
+{
+  "formatVersion": 1,
+  "name": "Untitled",
+  "board": "espbot2-ble",
+  "blocks": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "when_started",
+          "id": "Q6U@)=RnG#sSJ#;kxMLi",
+          "x": 732,
+          "y": 60,
+          "next": {
+            "block": {
+              "type": "variables_set",
+              "id": "0IxP(aVA[R{%wLbcf2ZN",
+              "fields": {
+                "VAR": {
+                  "id": "yQU,jwdp/1pIN^k-gP(l"
+                }
+              },
+              "inputs": {
+                "VALUE": {
+                  "block": {
+                    "type": "math_number",
+                    "id": "P(mik*LtbY:YZ{c0;,vQ",
+                    "fields": {
+                      "NUM": 100
+                    }
+                  }
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "ble_begin",
+                  "id": "9[RAZl|TA!Kk*GgqV[-V",
+                  "inputs": {
+                    "NAME": {
+                      "shadow": {
+                        "type": "text_literal",
+                        "id": "3%5~W3]Z8skg1RMYW74M",
+                        "fields": {
+                          "TEXT": "EspBot"
+                        }
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "print_terminal",
+                      "id": "$r8jrc%$$Q5bqMT1]5Mr",
+                      "inputs": {
+                        "MSG": {
+                          "shadow": {
+                            "type": "text_literal",
+                            "id": "T(D*H05ybMd~U0_{beRF",
+                            "fields": {
+                              "TEXT": "EspBot waiting...."
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "repeat_while",
+                          "id": "%Kk5%VLtP;YR%pbs9Be*",
+                          "fields": {
+                            "MODE": "until"
+                          },
+                          "inputs": {
+                            "COND": {
+                              "block": {
+                                "type": "ble_connected",
+                                "id": "9-~p8D3[K/RW9Q4@Z;RI"
+                              }
+                            },
+                            "DO": {
+                              "block": {
+                                "type": "wait_seconds",
+                                "id": "b9=RdhS2~/U!3Ob=T.r?",
+                                "inputs": {
+                                  "SEC": {
+                                    "shadow": {
+                                      "type": "math_number",
+                                      "id": "_`?UXW|=yFlaJA(Pq}*2",
+                                      "fields": {
+                                        "NUM": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "next": {
+                            "block": {
+                              "type": "print_terminal",
+                              "id": "r=KwlB5OFUw[0om(@)5d",
+                              "inputs": {
+                                "MSG": {
+                                  "shadow": {
+                                    "type": "text_literal",
+                                    "id": "@-_tX}]--3k1KvTgxEZ#",
+                                    "fields": {
+                                      "TEXT": "Hello!"
+                                    }
+                                  },
+                                  "block": {
+                                    "type": "text_join2",
+                                    "id": "~JWR`.:CoG:{ry%HS9=J",
+                                    "inputs": {
+                                      "A": {
+                                        "shadow": {
+                                          "type": "text_literal",
+                                          "id": "U4mP%Q/UGw`[.z{vSdU}",
+                                          "fields": {
+                                            "TEXT": "Speed: "
+                                          }
+                                        }
+                                      },
+                                      "B": {
+                                        "shadow": {
+                                          "type": "math_number",
+                                          "id": "]`VDPsPjcw#)56T8ns*Y",
+                                          "fields": {
+                                            "NUM": 0
+                                          }
+                                        },
+                                        "block": {
+                                          "type": "variables_get",
+                                          "id": "rAABE)cZEE8]c/ZII2Jd",
+                                          "fields": {
+                                            "VAR": {
+                                              "id": "yQU,jwdp/1pIN^k-gP(l"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "ble_write",
+                                  "id": "^dF6-D5%)5yG`c5Bjc|j",
+                                  "inputs": {
+                                    "TEXT": {
+                                      "shadow": {
+                                        "type": "text_literal",
+                                        "id": "N5?G9lpvA=m1Wh2p_LC3",
+                                        "fields": {
+                                          "TEXT": "hello"
+                                        }
+                                      },
+                                      "block": {
+                                        "type": "text_join2",
+                                        "id": "(];:Y@1MhtEyw(p0_+{d",
+                                        "inputs": {
+                                          "A": {
+                                            "shadow": {
+                                              "type": "text_literal",
+                                              "id": "H|2wduLFp9-x?0[%jxNk",
+                                              "fields": {
+                                                "TEXT": "Speed: "
+                                              }
+                                            }
+                                          },
+                                          "B": {
+                                            "shadow": {
+                                              "type": "math_number",
+                                              "id": "]`VDPsPjcw#)56T8ns*Y",
+                                              "fields": {
+                                                "NUM": 0
+                                              }
+                                            },
+                                            "block": {
+                                              "type": "variables_get",
+                                              "id": "oINmN3}./6]}ra6{|AzO",
+                                              "fields": {
+                                                "VAR": {
+                                                  "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "forever",
+                                      "id": "+L|zyw(rxTnhe`vy4g$=",
+                                      "inputs": {
+                                        "DO": {
+                                          "block": {
+                                            "type": "if_else",
+                                            "id": ",TXgqKXn8lY-gYtQdRpf",
+                                            "extraState": {
+                                              "elif": 3
+                                            },
+                                            "inputs": {
+                                              "COND": {
+                                                "block": {
+                                                  "type": "ble_button",
+                                                  "id": ":otrtv*3|nX=(L(s.s0T",
+                                                  "fields": {
+                                                    "BTN": "ButtonUp",
+                                                    "STATE": "True"
+                                                  }
+                                                }
+                                              },
+                                              "DO": {
+                                                "block": {
+                                                  "type": "motor_spin",
+                                                  "id": "_[KkTuD`}M1=X0pPvTA`",
+                                                  "fields": {
+                                                    "MOTOR": "EspBot.MotorLeftAndRight",
+                                                    "DIR": "EspBot.Forward"
+                                                  },
+                                                  "inputs": {
+                                                    "SPEED": {
+                                                      "shadow": {
+                                                        "type": "math_number",
+                                                        "id": "NGgUsvNwx}A-sKq~@1v+",
+                                                        "fields": {
+                                                          "NUM": 60
+                                                        }
+                                                      },
+                                                      "block": {
+                                                        "type": "variables_get",
+                                                        "id": "csFvn$);/ED+f2h]y[QH",
+                                                        "fields": {
+                                                          "VAR": {
+                                                            "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "IF1": {
+                                                "block": {
+                                                  "type": "ble_button",
+                                                  "id": "~[=(AAdea^_cVW;@:[D;",
+                                                  "fields": {
+                                                    "BTN": "ButtonDown",
+                                                    "STATE": "True"
+                                                  }
+                                                }
+                                              },
+                                              "THEN1": {
+                                                "block": {
+                                                  "type": "motor_spin",
+                                                  "id": "jFXMkK)yR+p24z4ZgQ*-",
+                                                  "fields": {
+                                                    "MOTOR": "EspBot.MotorLeftAndRight",
+                                                    "DIR": "EspBot.Backward"
+                                                  },
+                                                  "inputs": {
+                                                    "SPEED": {
+                                                      "shadow": {
+                                                        "type": "math_number",
+                                                        "id": "78M,wL0H[`izBu%^il`P",
+                                                        "fields": {
+                                                          "NUM": 60
+                                                        }
+                                                      },
+                                                      "block": {
+                                                        "type": "variables_get",
+                                                        "id": "6;m=?6H~|GNm,]~p=[2e",
+                                                        "fields": {
+                                                          "VAR": {
+                                                            "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "IF2": {
+                                                "block": {
+                                                  "type": "ble_button",
+                                                  "id": "0YQETgwh[q11aOUe=EZ^",
+                                                  "fields": {
+                                                    "BTN": "ButtonLeft",
+                                                    "STATE": "True"
+                                                  }
+                                                }
+                                              },
+                                              "THEN2": {
+                                                "block": {
+                                                  "type": "motor_spin",
+                                                  "id": "$9pc]cdY`c5Bv-8CMN^]",
+                                                  "fields": {
+                                                    "MOTOR": "EspBot.MotorRight",
+                                                    "DIR": "EspBot.Forward"
+                                                  },
+                                                  "inputs": {
+                                                    "SPEED": {
+                                                      "shadow": {
+                                                        "type": "math_number",
+                                                        "id": "Xlnp;X7QtU,d]m)9_lBO",
+                                                        "fields": {
+                                                          "NUM": 60
+                                                        }
+                                                      },
+                                                      "block": {
+                                                        "type": "variables_get",
+                                                        "id": "#a;4O}d,bu8Wp:uea([u",
+                                                        "fields": {
+                                                          "VAR": {
+                                                            "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "next": {
+                                                    "block": {
+                                                      "type": "motor_spin",
+                                                      "id": "Ux#^Vv35-N0ZD-t6P{^H",
+                                                      "fields": {
+                                                        "MOTOR": "EspBot.MotorLeft",
+                                                        "DIR": "EspBot.Backward"
+                                                      },
+                                                      "inputs": {
+                                                        "SPEED": {
+                                                          "shadow": {
+                                                            "type": "math_number",
+                                                            "id": "(i#$l]{N7JuK;pW~9g1O",
+                                                            "fields": {
+                                                              "NUM": 60
+                                                            }
+                                                          },
+                                                          "block": {
+                                                            "type": "variables_get",
+                                                            "id": "p3:Su9Y+ufz^xBzr+dFy",
+                                                            "fields": {
+                                                              "VAR": {
+                                                                "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "IF3": {
+                                                "block": {
+                                                  "type": "ble_button",
+                                                  "id": "E:x455[;_?;Mm;AC~W:z",
+                                                  "fields": {
+                                                    "BTN": "ButtonRight",
+                                                    "STATE": "True"
+                                                  }
+                                                }
+                                              },
+                                              "THEN3": {
+                                                "block": {
+                                                  "type": "motor_spin",
+                                                  "id": "WMVCT@T1B33gs?I(WnmC",
+                                                  "fields": {
+                                                    "MOTOR": "EspBot.MotorRight",
+                                                    "DIR": "EspBot.Backward"
+                                                  },
+                                                  "inputs": {
+                                                    "SPEED": {
+                                                      "shadow": {
+                                                        "type": "math_number",
+                                                        "id": "(i#$l]{N7JuK;pW~9g1O",
+                                                        "fields": {
+                                                          "NUM": 60
+                                                        }
+                                                      },
+                                                      "block": {
+                                                        "type": "variables_get",
+                                                        "id": "kkY,[Z;uUQKu{4Kq(J-n",
+                                                        "fields": {
+                                                          "VAR": {
+                                                            "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "next": {
+                                                    "block": {
+                                                      "type": "motor_spin",
+                                                      "id": "zWUSolBz@3Yy2n)bJC+j",
+                                                      "fields": {
+                                                        "MOTOR": "EspBot.MotorLeft",
+                                                        "DIR": "EspBot.Forward"
+                                                      },
+                                                      "inputs": {
+                                                        "SPEED": {
+                                                          "shadow": {
+                                                            "type": "math_number",
+                                                            "id": "(i#$l]{N7JuK;pW~9g1O",
+                                                            "fields": {
+                                                              "NUM": 60
+                                                            }
+                                                          },
+                                                          "block": {
+                                                            "type": "variables_get",
+                                                            "id": "nD1-66LMarv~%jHX}wv{",
+                                                            "fields": {
+                                                              "VAR": {
+                                                                "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "ELSE": {
+                                                "block": {
+                                                  "type": "motor_stop",
+                                                  "id": "uSEm.,T@AZI7mxkVBlWI",
+                                                  "fields": {
+                                                    "MOTOR": "EspBot.MotorLeftAndRight"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "next": {
+                                              "block": {
+                                                "type": "if_else",
+                                                "id": "{NSNwqW9yvIVVQM|{ZYC",
+                                                "extraState": {
+                                                  "elif": 3
+                                                },
+                                                "inputs": {
+                                                  "COND": {
+                                                    "block": {
+                                                      "type": "ble_button",
+                                                      "id": "bqNgoih|nr2+v8jl-a(Z",
+                                                      "fields": {
+                                                        "BTN": "Button1",
+                                                        "STATE": "True"
+                                                      }
+                                                    }
+                                                  },
+                                                  "DO": {
+                                                    "block": {
+                                                      "type": "variables_set",
+                                                      "id": "d`B-oqtyAEvx|L?Tya16",
+                                                      "fields": {
+                                                        "VAR": {
+                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                        }
+                                                      },
+                                                      "inputs": {
+                                                        "VALUE": {
+                                                          "block": {
+                                                            "type": "math_number",
+                                                            "id": "QGhnR2`d#!Ot]7n~rn}a",
+                                                            "fields": {
+                                                              "NUM": 40
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "print_terminal",
+                                                          "id": ";Qj4Kf5]3ERtYDQh0}m1",
+                                                          "inputs": {
+                                                            "MSG": {
+                                                              "shadow": {
+                                                                "type": "text_literal",
+                                                                "id": "@-_tX}]--3k1KvTgxEZ#",
+                                                                "fields": {
+                                                                  "TEXT": "Hello!"
+                                                                }
+                                                              },
+                                                              "block": {
+                                                                "type": "text_join2",
+                                                                "id": "@I?$f`8j%D)93-8ZC?e!",
+                                                                "inputs": {
+                                                                  "A": {
+                                                                    "shadow": {
+                                                                      "type": "text_literal",
+                                                                      "id": "k%LESv4Uhiq2nWbu7gkw",
+                                                                      "fields": {
+                                                                        "TEXT": "Speed: "
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "B": {
+                                                                    "shadow": {
+                                                                      "type": "math_number",
+                                                                      "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                      "fields": {
+                                                                        "NUM": 0
+                                                                      }
+                                                                    },
+                                                                    "block": {
+                                                                      "type": "variables_get",
+                                                                      "id": "P]_a|2zVBoK463F3XsC|",
+                                                                      "fields": {
+                                                                        "VAR": {
+                                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "ble_write",
+                                                              "id": "0fSmghJrb+u{$Fj-p-gh",
+                                                              "inputs": {
+                                                                "TEXT": {
+                                                                  "shadow": {
+                                                                    "type": "text_literal",
+                                                                    "id": "N5?G9lpvA=m1Wh2p_LC3",
+                                                                    "fields": {
+                                                                      "TEXT": "hello"
+                                                                    }
+                                                                  },
+                                                                  "block": {
+                                                                    "type": "text_join2",
+                                                                    "id": "Hd}?sNT8IXXzieU1sFbJ",
+                                                                    "inputs": {
+                                                                      "A": {
+                                                                        "shadow": {
+                                                                          "type": "text_literal",
+                                                                          "id": ")Vw(abga@%-c[4l*/1!8",
+                                                                          "fields": {
+                                                                            "TEXT": "Speed: "
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "B": {
+                                                                        "shadow": {
+                                                                          "type": "math_number",
+                                                                          "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                          "fields": {
+                                                                            "NUM": 0
+                                                                          }
+                                                                        },
+                                                                        "block": {
+                                                                          "type": "variables_get",
+                                                                          "id": "=h`7)Ka,bpA-(DZVkibU",
+                                                                          "fields": {
+                                                                            "VAR": {
+                                                                              "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "IF1": {
+                                                    "block": {
+                                                      "type": "ble_button",
+                                                      "id": "(H/[^4bsM!zS*NV._WR4",
+                                                      "fields": {
+                                                        "BTN": "Button2",
+                                                        "STATE": "True"
+                                                      }
+                                                    }
+                                                  },
+                                                  "THEN1": {
+                                                    "block": {
+                                                      "type": "variables_set",
+                                                      "id": "P./d;sD)J1@bJ.{[mAmM",
+                                                      "fields": {
+                                                        "VAR": {
+                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                        }
+                                                      },
+                                                      "inputs": {
+                                                        "VALUE": {
+                                                          "block": {
+                                                            "type": "math_number",
+                                                            "id": "ic@$8qs7#2qK4ik@/V:v",
+                                                            "fields": {
+                                                              "NUM": 60
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "print_terminal",
+                                                          "id": "f4[r_lrX`@?{LN#bpe1T",
+                                                          "inputs": {
+                                                            "MSG": {
+                                                              "shadow": {
+                                                                "type": "text_literal",
+                                                                "id": "@-_tX}]--3k1KvTgxEZ#",
+                                                                "fields": {
+                                                                  "TEXT": "Hello!"
+                                                                }
+                                                              },
+                                                              "block": {
+                                                                "type": "text_join2",
+                                                                "id": "e?sh0?6(TfCv;OTBF#^T",
+                                                                "inputs": {
+                                                                  "A": {
+                                                                    "shadow": {
+                                                                      "type": "text_literal",
+                                                                      "id": "VT-7[?AbX@{EuON$#Txl",
+                                                                      "fields": {
+                                                                        "TEXT": "Speed: "
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "B": {
+                                                                    "shadow": {
+                                                                      "type": "math_number",
+                                                                      "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                      "fields": {
+                                                                        "NUM": 0
+                                                                      }
+                                                                    },
+                                                                    "block": {
+                                                                      "type": "variables_get",
+                                                                      "id": "_%BIvbOOsw[y|*;gaZDE",
+                                                                      "fields": {
+                                                                        "VAR": {
+                                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "ble_write",
+                                                              "id": "wJQxnM%7M(C-j6*W?n%w",
+                                                              "inputs": {
+                                                                "TEXT": {
+                                                                  "shadow": {
+                                                                    "type": "text_literal",
+                                                                    "id": "N5?G9lpvA=m1Wh2p_LC3",
+                                                                    "fields": {
+                                                                      "TEXT": "hello"
+                                                                    }
+                                                                  },
+                                                                  "block": {
+                                                                    "type": "text_join2",
+                                                                    "id": "^pG(I`WMu*y_bY0V!FPA",
+                                                                    "inputs": {
+                                                                      "A": {
+                                                                        "shadow": {
+                                                                          "type": "text_literal",
+                                                                          "id": "d#2@0giU[I;VSkdW+w[r",
+                                                                          "fields": {
+                                                                            "TEXT": "Speed: "
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "B": {
+                                                                        "shadow": {
+                                                                          "type": "math_number",
+                                                                          "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                          "fields": {
+                                                                            "NUM": 0
+                                                                          }
+                                                                        },
+                                                                        "block": {
+                                                                          "type": "variables_get",
+                                                                          "id": "[diJC,8!5yN*w7A,~AXB",
+                                                                          "fields": {
+                                                                            "VAR": {
+                                                                              "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "IF2": {
+                                                    "block": {
+                                                      "type": "ble_button",
+                                                      "id": "93}ns2`ce!F8Ezpx96py",
+                                                      "fields": {
+                                                        "BTN": "Button3",
+                                                        "STATE": "True"
+                                                      }
+                                                    }
+                                                  },
+                                                  "THEN2": {
+                                                    "block": {
+                                                      "type": "variables_set",
+                                                      "id": "?H@n#|e$:2M_9o*#pi~+",
+                                                      "fields": {
+                                                        "VAR": {
+                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                        }
+                                                      },
+                                                      "inputs": {
+                                                        "VALUE": {
+                                                          "block": {
+                                                            "type": "math_number",
+                                                            "id": ".S@|}VTx_V/,M-7IM`$2",
+                                                            "fields": {
+                                                              "NUM": 80
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "print_terminal",
+                                                          "id": "r5`i8qodm1vRQz);ovZ$",
+                                                          "inputs": {
+                                                            "MSG": {
+                                                              "shadow": {
+                                                                "type": "text_literal",
+                                                                "id": "@-_tX}]--3k1KvTgxEZ#",
+                                                                "fields": {
+                                                                  "TEXT": "Hello!"
+                                                                }
+                                                              },
+                                                              "block": {
+                                                                "type": "text_join2",
+                                                                "id": "bZI_a8?++nx!%a|~@A:0",
+                                                                "inputs": {
+                                                                  "A": {
+                                                                    "shadow": {
+                                                                      "type": "text_literal",
+                                                                      "id": "qWYe9SzS(htrp2IfttE5",
+                                                                      "fields": {
+                                                                        "TEXT": "Speed: "
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "B": {
+                                                                    "shadow": {
+                                                                      "type": "math_number",
+                                                                      "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                      "fields": {
+                                                                        "NUM": 0
+                                                                      }
+                                                                    },
+                                                                    "block": {
+                                                                      "type": "variables_get",
+                                                                      "id": "T9j`lgCTnFg%E]pzbu]z",
+                                                                      "fields": {
+                                                                        "VAR": {
+                                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "ble_write",
+                                                              "id": "eBUMCgFO`GJHuYTl_ext",
+                                                              "inputs": {
+                                                                "TEXT": {
+                                                                  "shadow": {
+                                                                    "type": "text_literal",
+                                                                    "id": "N5?G9lpvA=m1Wh2p_LC3",
+                                                                    "fields": {
+                                                                      "TEXT": "hello"
+                                                                    }
+                                                                  },
+                                                                  "block": {
+                                                                    "type": "text_join2",
+                                                                    "id": "2c!GA_:HberX:+,nE9@r",
+                                                                    "inputs": {
+                                                                      "A": {
+                                                                        "shadow": {
+                                                                          "type": "text_literal",
+                                                                          "id": "]pAqb*k)kMCVY@L!M:ga",
+                                                                          "fields": {
+                                                                            "TEXT": "Speed: "
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "B": {
+                                                                        "shadow": {
+                                                                          "type": "math_number",
+                                                                          "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                          "fields": {
+                                                                            "NUM": 0
+                                                                          }
+                                                                        },
+                                                                        "block": {
+                                                                          "type": "variables_get",
+                                                                          "id": ".(?@{%pDbYxwktI-`ddo",
+                                                                          "fields": {
+                                                                            "VAR": {
+                                                                              "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "IF3": {
+                                                    "block": {
+                                                      "type": "ble_button",
+                                                      "id": "uD{rRjrgFaZLL].suEvL",
+                                                      "fields": {
+                                                        "BTN": "Button4",
+                                                        "STATE": "True"
+                                                      }
+                                                    }
+                                                  },
+                                                  "THEN3": {
+                                                    "block": {
+                                                      "type": "variables_set",
+                                                      "id": ")[zL@8|%fHF:%5?4w|9,",
+                                                      "fields": {
+                                                        "VAR": {
+                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                        }
+                                                      },
+                                                      "inputs": {
+                                                        "VALUE": {
+                                                          "block": {
+                                                            "type": "math_number",
+                                                            "id": "(`fami#,@)_+ub0wr9G;",
+                                                            "fields": {
+                                                              "NUM": 100
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "print_terminal",
+                                                          "id": "zZ;-i-5s=W9!6vjbsce`",
+                                                          "inputs": {
+                                                            "MSG": {
+                                                              "shadow": {
+                                                                "type": "text_literal",
+                                                                "id": "@-_tX}]--3k1KvTgxEZ#",
+                                                                "fields": {
+                                                                  "TEXT": "Hello!"
+                                                                }
+                                                              },
+                                                              "block": {
+                                                                "type": "text_join2",
+                                                                "id": ".C,k+qAu$pD/7Fd_qG1W",
+                                                                "inputs": {
+                                                                  "A": {
+                                                                    "shadow": {
+                                                                      "type": "text_literal",
+                                                                      "id": "5;e~oyp^y}Ubb(]3]Nj+",
+                                                                      "fields": {
+                                                                        "TEXT": "Speed: "
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "B": {
+                                                                    "shadow": {
+                                                                      "type": "math_number",
+                                                                      "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                      "fields": {
+                                                                        "NUM": 0
+                                                                      }
+                                                                    },
+                                                                    "block": {
+                                                                      "type": "variables_get",
+                                                                      "id": "0Wg/$E@=@d$b/Ujg2r/;",
+                                                                      "fields": {
+                                                                        "VAR": {
+                                                                          "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "ble_write",
+                                                              "id": "k9Yq_[?DdMZ_?P3|lJ@R",
+                                                              "inputs": {
+                                                                "TEXT": {
+                                                                  "shadow": {
+                                                                    "type": "text_literal",
+                                                                    "id": "N5?G9lpvA=m1Wh2p_LC3",
+                                                                    "fields": {
+                                                                      "TEXT": "hello"
+                                                                    }
+                                                                  },
+                                                                  "block": {
+                                                                    "type": "text_join2",
+                                                                    "id": "AAIAzoG.W`kOVD|@wv(`",
+                                                                    "inputs": {
+                                                                      "A": {
+                                                                        "shadow": {
+                                                                          "type": "text_literal",
+                                                                          "id": "aO~c-9|-.tB**G_3h6!^",
+                                                                          "fields": {
+                                                                            "TEXT": "Speed: "
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "B": {
+                                                                        "shadow": {
+                                                                          "type": "math_number",
+                                                                          "id": "]`VDPsPjcw#)56T8ns*Y",
+                                                                          "fields": {
+                                                                            "NUM": 0
+                                                                          }
+                                                                        },
+                                                                        "block": {
+                                                                          "type": "variables_get",
+                                                                          "id": "771A%k2mKWIQV6`NT3lR",
+                                                                          "fields": {
+                                                                            "VAR": {
+                                                                              "id": "yQU,jwdp/1pIN^k-gP(l"
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                },
+                                                "next": {
+                                                  "block": {
+                                                    "type": "wait_ms",
+                                                    "id": "w}]l#GmH{11!vPqLy`Ui",
+                                                    "fields": {
+                                                      "MS": 50
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "name": "speed",
+        "id": "yQU,jwdp/1pIN^k-gP(l"
+      }
+    ]
+  },
+  "detached": false
+}

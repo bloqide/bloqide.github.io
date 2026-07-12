@@ -119,6 +119,38 @@ export const plugin: BloqPlugin = {
   toolbox: { category: "Control", colour: 210, order: 10, faIcon: "fa-flag" },
   icon: { preset: "flag" },
 
+  // Board-agnostic starter projects (open on whatever board is current).
+  examples: [
+    {
+      id: "blink",
+      name: "Blink",
+      description: "Toggle the onboard LED in a loop",
+      file: "examples/core/blink.bloq",
+    },
+    {
+      id: "two-blinkers",
+      name: "Two blinkers",
+      description: "Two independent blink loops (scheduler)",
+      file: "examples/core/two-stacks.bloq",
+    },
+  ],
+
+  // Ready-made snippet: a blink loop (drop under a "when started").
+  presets: [
+    {
+      kind: "block",
+      type: "forever",
+      inputs: {
+        DO: {
+          block: {
+            type: "gpio_toggle_led",
+            next: { block: { type: "wait_ms", fields: { MS: 500 } } },
+          },
+        },
+      },
+    },
+  ],
+
   blocks: {
     when_started: {
       hat: true,

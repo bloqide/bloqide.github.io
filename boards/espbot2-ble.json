@@ -53,7 +53,49 @@
   ],
 
   "libraries": [],
-  "examples": [],
+  "examples": [
+    {
+      "id": "ble-robot",
+      "name": "BLE robot",
+      "description": "Drive with a phone gamepad over Bluetooth",
+      "file": "examples/espbot2-ble/ble-robot.bloq"
+    }
+  ],
+
+  "presets": {
+    "Bluetooth": [
+      {
+        "kind": "block",
+        "type": "ble_begin",
+        "inputs": { "NAME": { "shadow": { "type": "text_literal", "fields": { "TEXT": "EspBot" } } } },
+        "next": {
+          "block": {
+            "type": "forever",
+            "inputs": {
+              "DO": {
+                "block": {
+                  "type": "if_else",
+                  "inputs": {
+                    "COND": { "block": { "type": "ble_button", "fields": { "BTN": "ButtonUp", "STATE": "True" } } },
+                    "DO": {
+                      "block": {
+                        "type": "motor_spin",
+                        "fields": { "MOTOR": "EspBot.MotorLeftAndRight", "DIR": "EspBot.Forward" },
+                        "inputs": { "SPEED": { "shadow": { "type": "math_number", "fields": { "NUM": 60 } } } }
+                      }
+                    },
+                    "ELSE": {
+                      "block": { "type": "motor_stop", "fields": { "MOTOR": "EspBot.MotorLeftAndRight" } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
 
   "overrides": {}
 }

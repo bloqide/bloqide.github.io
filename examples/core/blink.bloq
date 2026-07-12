@@ -1,5 +1,4 @@
 {
-  "board": "esp32-c3",
   "blocks": {
     "languageVersion": 0,
     "blocks": [

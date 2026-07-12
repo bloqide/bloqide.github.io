@@ -44,10 +44,7 @@
   "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables"],
 
   "libraries": [],
-  "examples": [
-    { "id": "blink", "name": "Blink (simple)", "file": "examples/esp32-c3/blink.bloq" },
-    { "id": "two-stacks", "name": "Two blinkers (scheduler)", "file": "examples/esp32-c3/two-stacks.bloq" }
-  ],
+  "examples": [],
 
   "overrides": {}
 }

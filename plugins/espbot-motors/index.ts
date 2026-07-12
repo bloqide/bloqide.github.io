@@ -32,6 +32,23 @@ export const plugin: BloqPlugin = {
   version: "1.0.0",
   toolbox: { category: "Motors", colour: COLOUR, order: 70, faIcon: "fa-gears" },
 
+  // Snippet: drive forward for a second, then stop.
+  presets: [
+    {
+      kind: "block",
+      type: "motor_spin",
+      fields: { MOTOR: "EspBot.MotorLeftAndRight", DIR: "EspBot.Forward" },
+      inputs: { SPEED: { shadow: { type: "math_number", fields: { NUM: 60 } } } },
+      next: {
+        block: {
+          type: "wait_ms",
+          fields: { MS: 1000 },
+          next: { block: { type: "motor_stop", fields: { MOTOR: "EspBot.MotorLeftAndRight" } } },
+        },
+      },
+    },
+  ],
+
   blocks: {
     motor_spin: {
       kind: "statement",
