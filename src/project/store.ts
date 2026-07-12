@@ -3,7 +3,7 @@ import type { ProjectRecord } from "./types";
 // Minimal IndexedDB-backed project library (no dependency). One object store
 // keyed by project id.
 
-const DB_NAME = "microblock";
+const DB_NAME = "bloq";
 const STORE = "projects";
 const DB_VERSION = 1;
 

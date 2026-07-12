@@ -1,7 +1,7 @@
 // Project persistence model.
 //
 // A ProjectRecord is what lives in the IndexedDB library (has an id + timestamp).
-// A ProjectFile is the portable .mbproj shape written to / read from disk — no
+// A ProjectFile is the portable .bloq shape written to / read from disk — no
 // library-local fields, plus a formatVersion so older files keep loading as the
 // schema grows.
 

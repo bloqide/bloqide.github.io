@@ -14,7 +14,7 @@ import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
 import type { ProjectRecord } from "./project/types";
 import type { Board } from "./core/types";
-import mbruntimeSource from "./runtime/mbruntime.py?raw";
+import bloqSource from "./runtime/bloq.py?raw";
 
 const DEFAULT_BOARD = "esp32-c3";
 
@@ -275,8 +275,8 @@ connectBtn.addEventListener("click", async () => {
 // Files this program needs on the device (runtime lib only when scheduler used).
 function requiredFiles(): { dest: string; content: string }[] {
   const files: { dest: string; content: string }[] = [];
-  if (lastResult?.requiredLibraries.has("/lib/mbruntime.py")) {
-    files.push({ dest: "/lib/mbruntime.py", content: mbruntimeSource });
+  if (lastResult?.requiredLibraries.has("/lib/bloq.py")) {
+    files.push({ dest: "/lib/bloq.py", content: bloqSource });
   }
   return files;
 }
@@ -340,7 +340,7 @@ function currentCode(): string {
 }
 
 // ---- Project management (IndexedDB library + file import/export) ----
-const LAST_OPEN_KEY = "microblock:lastOpen";
+const LAST_OPEN_KEY = "bloq:lastOpen";
 let current: ProjectRecord = newRecord("Untitled", board.id);
 let loading = false; // suppress autosave while applying a loaded project
 
@@ -422,7 +422,7 @@ function applyProject(rec: ProjectRecord): void {
 // are flushed to the store when left, so their in-memory records stay current.
 // Blockly's clipboard is module-global, so copy in one tab / paste in another
 // works across a switch.
-const OPEN_TABS_KEY = "microblock:openTabs";
+const OPEN_TABS_KEY = "bloq:openTabs";
 const tabbar = document.getElementById("tabbar")!;
 let openTabs: ProjectRecord[] = [];
 

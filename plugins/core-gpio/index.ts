@@ -1,4 +1,4 @@
-import type { MicroblockPlugin, GenContext } from "../../src/core/types";
+import type { BloqPlugin, GenContext } from "../../src/core/types";
 import type * as Blockly from "blockly";
 
 // GPIO blocks. Pin dropdowns are populated from the active board (the registry
@@ -16,7 +16,7 @@ function reservePin(ctx: GenContext, pin: string, dir: "OUT" | "IN"): string {
   return v;
 }
 
-export const plugin: MicroblockPlugin = {
+export const plugin: BloqPlugin = {
   id: "core-gpio",
   name: "Pins",
   version: "1.0.0",

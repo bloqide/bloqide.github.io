@@ -1,7 +1,7 @@
 import type { ProjectFile, ProjectRecord } from "./types";
 import { FORMAT_VERSION } from "./types";
 
-// Serialize projects to/from the portable .mbproj file format, and helpers for
+// Serialize projects to/from the portable .bloq file format, and helpers for
 // creating fresh records and downloading/importing files.
 
 export function newId(): string {
@@ -48,24 +48,24 @@ export function download(rec: ProjectRecord): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${sanitizeName(rec.name)}.mbproj`;
+  a.download = `${sanitizeName(rec.name)}.bloq`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-/** Prompt the user for a .mbproj file and parse it. Returns null if cancelled. */
+/** Prompt the user for a .bloq file and parse it. Returns null if cancelled. */
 export function pickFile(): Promise<ProjectFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".mbproj,application/json";
+    input.accept = ".bloq,application/json";
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return resolve(null);
       try {
         const parsed = JSON.parse(await f.text()) as ProjectFile;
         if (typeof parsed !== "object" || !parsed.board || !parsed.blocks) {
-          throw new Error("Not a valid .mbproj file");
+          throw new Error("Not a valid .bloq file");
         }
         resolve(parsed);
       } catch (err) {

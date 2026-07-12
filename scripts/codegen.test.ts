@@ -77,7 +77,7 @@ const cg = () => new CodeGen(board as any, { defs, gens });
     ["sched", "yield", "def stack_"]
   );
   console.assert(!r.schedulerMode, "expected simple mode");
-  console.assert(!r.requiredLibraries.has("/lib/mbruntime.py"), "no runtime lib in simple mode");
+  console.assert(!r.requiredLibraries.has("/lib/bloq.py"), "no runtime lib in simple mode");
 }
 
 // --- Test 2: two hats -> SCHEDULER mode (generators, cooperative wait) ---
@@ -98,7 +98,7 @@ const cg = () => new CodeGen(board as any, { defs, gens });
     "two hats => scheduler mode",
     r.code,
     [
-      "from mbruntime import sched",
+      "from bloq import sched",
       "def stack_1():",
       "def stack_2():",
       "yield from sched.sleep_ms(500)",
@@ -110,7 +110,7 @@ const cg = () => new CodeGen(board as any, { defs, gens });
     ["time.sleep_ms"]
   );
   console.assert(r.schedulerMode, "expected scheduler mode");
-  console.assert(r.requiredLibraries.has("/lib/mbruntime.py"), "runtime lib required");
+  console.assert(r.requiredLibraries.has("/lib/bloq.py"), "runtime lib required");
 }
 
 // --- Test 3: source map maps generated lines back to block ids ---

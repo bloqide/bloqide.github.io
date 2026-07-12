@@ -1,6 +1,6 @@
 import type {
   Board,
-  MicroblockPlugin,
+  BloqPlugin,
   BlockDef,
   BlockGenerator,
   ValueGenerator,
@@ -14,7 +14,7 @@ import type {
 // in non-Vite contexts (e.g. headless tests) that inject their own defs.
 
 let _boards: Board[] | null = null;
-let _plugins: MicroblockPlugin[] | null = null;
+let _plugins: BloqPlugin[] | null = null;
 
 function boards(): Board[] {
   if (_boards) return _boards;
@@ -25,9 +25,9 @@ function boards(): Board[] {
   return _boards;
 }
 
-function plugins(): MicroblockPlugin[] {
+function plugins(): BloqPlugin[] {
   if (_plugins) return _plugins;
-  const mods = import.meta.glob<{ plugin: MicroblockPlugin }>("../../plugins/*/index.ts", {
+  const mods = import.meta.glob<{ plugin: BloqPlugin }>("../../plugins/*/index.ts", {
     eager: true,
   });
   _plugins = Object.values(mods).map((m) => m.plugin);
@@ -42,7 +42,7 @@ export function getBoard(id: string): Board | undefined {
   return boards().find((b) => b.id === id);
 }
 
-export function getPlugin(id: string): MicroblockPlugin | undefined {
+export function getPlugin(id: string): BloqPlugin | undefined {
   return plugins().find((p) => p.id === id);
 }
 
@@ -50,7 +50,7 @@ export function getPlugin(id: string): MicroblockPlugin | undefined {
  * Plugins active for a board: those it lists AND whose required capabilities the
  * board satisfies. Ordered by toolbox.order.
  */
-export function activePlugins(board: Board): MicroblockPlugin[] {
+export function activePlugins(board: Board): BloqPlugin[] {
   const caps = new Set(board.capabilities);
   return plugins()
     .filter((p) => board.plugins.includes(p.id))

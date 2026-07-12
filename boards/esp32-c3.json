@@ -45,8 +45,8 @@
 
   "libraries": [],
   "examples": [
-    { "id": "blink", "name": "Blink (simple)", "file": "examples/esp32-c3/blink.mbproj" },
-    { "id": "two-stacks", "name": "Two blinkers (scheduler)", "file": "examples/esp32-c3/two-stacks.mbproj" }
+    { "id": "blink", "name": "Blink (simple)", "file": "examples/esp32-c3/blink.bloq" },
+    { "id": "two-stacks", "name": "Two blinkers (scheduler)", "file": "examples/esp32-c3/two-stacks.bloq" }
   ],
 
   "overrides": {}

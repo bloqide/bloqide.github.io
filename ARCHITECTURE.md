@@ -1,4 +1,4 @@
-# Microblock — Architecture
+# Bloq — Architecture
 
 An offline, block-based MicroPython IDE for robots and boards. Drag Scratch-style
 blocks, generate readable MicroPython, and run it on hardware over Web Serial —
@@ -83,7 +83,7 @@ template replacements — alongside the hardware facts.
 | `plugins` | registry | which block bundles load for this board |
 | `overrides` | CodeGen | per-block template per dialect (the escape hatch) |
 | `libraries` | device sync | `.py` files shipped to the board filesystem |
-| `examples` | gallery | separate `.mbproj` files, lazy-loaded |
+| `examples` | gallery | separate `.bloq` files, lazy-loaded |
 | `icon` | UI | preset name, or user-imported image (blob in IndexedDB) |
 
 **Decoupling rule:** `capabilities` = hardware facts; `plugins` = which bundles
@@ -95,8 +95,8 @@ load; `overrides` = how blocks generate for this dialect. A block references a
 ## 4. Plugins (block bundles)
 
 A plugin is a **file-based TS module** (`plugins/<id>/index.ts`) exporting a
-`MicroblockPlugin`. Trusted, so full JS generators are allowed. See
-`src/core/types.ts` (`MicroblockPlugin`) and `plugins/core-*/`.
+`BloqPlugin`. Trusted, so full JS generators are allowed. See
+`src/core/types.ts` (`BloqPlugin`) and `plugins/core-*/`.
 
 A plugin bundles: `blocks` (Blockly JSON defs), `generators` (JS function *or*
 template string per block), a `toolbox` category contribution, `requires`
@@ -171,7 +171,7 @@ silently change a beginner's timings.
 | `wait N ms` | `time.sleep_ms(N)` | `yield from sched.sleep_ms(N)` |
 | event hat | `while True:` + poll | `while True: yield from sched.wait_until(...)` |
 
-Assembly order: header comment → imports (sorted, deduped) → `from mbruntime
+Assembly order: header comment → imports (sorted, deduped) → `from bloq
 import sched` (scheduler only) → setup lines → hoisted function defs → body
 (linear, or `def stack_N` + `spawn` + `sched.run()`).
 
@@ -187,7 +187,7 @@ As it emits, CodeGen records `line → blockId` and `blockId → [lines]`. Uses:
 
 ## 6. Concurrency runtime (cooperative scheduler)
 
-`src/runtime/mbruntime.py`, shipped to the device (`/lib/mbruntime.py`) **only
+`src/runtime/bloq.py`, shipped to the device (`/lib/bloq.py`) **only
 when scheduler mode is used**. ~20 lines. Each stack is a Python generator; the
 scheduler runs each until its next `yield`.
 
@@ -261,13 +261,13 @@ in-memory session hash cache; a full impl reads a device-side manifest.)*
 ## 9. Projects & persistence
 
 - A **project** = one JSON doc: `{ board, blocks (Blockly serialization),
-  reusableBlocks, detached, editedCode? }`, saved as `.mbproj`.
+  reusableBlocks, detached, editedCode? }`, saved as `.bloq`.
 - **Multi-project** = tabs, each its own workspace; copy-paste and diff work
   because everything is serializable JSON.
-- Store in IndexedDB; import/export `.mbproj` files. Wizard blocks and promoted
+- Store in IndexedDB; import/export `.bloq` files. Wizard blocks and promoted
   reusable blocks live in a separate IndexedDB library, shared across projects.
 - **Built:** IndexedDB project library (list / open / duplicate / delete),
-  per-project autosave, reopen-last-project on boot, rename, `.mbproj`
+  per-project autosave, reopen-last-project on boot, rename, `.bloq`
   export/import (`src/project/`, `src/ui/library.ts`). Single active project;
   multi-project tabs still deferred.
 
@@ -276,7 +276,7 @@ in-memory session hash cache; a full impl reads a device-side manifest.)*
 ## 10. Data-model quick reference
 
 See `src/core/types.ts` for the authoritative definitions: `Board`,
-`MicroblockPlugin`, `BlockDef`, `BlockGenerator` / `ValueGenerator`, `GenContext`,
+`BloqPlugin`, `BlockDef`, `BlockGenerator` / `ValueGenerator`, `GenContext`,
 `GenResult`.
 
 ---
@@ -298,7 +298,7 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 - PWA offline precache.
 - **Project library** (IndexedDB): open / duplicate / delete, per-project
   autosave (empty drafts not persisted until edited), reopen-last-on-boot,
-  rename, `.mbproj` export/import.
+  rename, `.bloq` export/import.
 - **Multi-project tabs**: open/switch/close, per-tab viewport, copy/paste across
   tabs.
 - **Multi-device**: shared `ConnectionPool`, highlighted device drives Run/Save,

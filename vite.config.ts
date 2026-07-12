@@ -12,8 +12,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,json,py,woff2}"],
       },
       manifest: {
-        name: "Microblock",
-        short_name: "Microblock",
+        name: "Bloq",
+        short_name: "Bloq",
         description: "Block-based MicroPython IDE",
         theme_color: "#1e1e2e",
         display: "standalone",

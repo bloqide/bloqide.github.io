@@ -1,4 +1,4 @@
-# Microblock
+# Bloq
 
 Offline, block-based **MicroPython IDE** for robots and boards — drag Scratch-style
 blocks, generate readable MicroPython, and run it on hardware over **Web Serial**.
@@ -20,7 +20,7 @@ Then:
 2. Click **Split** to see blocks + generated MicroPython side by side. Click a
    code line to select its block, or a block to highlight its code.
 3. Add a **second** `when started` stack → watch the code switch from *simple
-   mode* to *scheduler mode* automatically (`mbruntime` appears, hats become
+   mode* to *scheduler mode* automatically (`bloq` appears, hats become
    cooperative generators).
 4. Plug in an **ESP32-C3** (running MicroPython), click **Connect**, pick the
    port, then **▶ Run** (RAM) or **⬇ Save to board** (writes `main.py`, runs on
@@ -30,7 +30,7 @@ Requires a **Chromium** browser (Web Serial). Firefox/Safari can edit but not
 connect.
 
 **Projects** save automatically to an in-browser library. Use the top menu:
-**New**, **Open…** (library + import `.mbproj`), **Export** (download `.mbproj`),
+**New**, **Open…** (library + import `.bloq`), **Export** (download `.bloq`),
 and click the project name to rename. Your last project reopens on reload.
 
 ## Scripts
@@ -51,19 +51,19 @@ plugins/           block bundles (TS modules)       — add blocks = drop a fold
   core-gpio/       pin write, onboard LED
 src/
   core/            types, registry, blocks, codegen
-  runtime/         mbruntime.py (cooperative scheduler, shipped to device)
+  runtime/         bloq.py (cooperative scheduler, shipped to device)
   serial/          Web Serial + raw-REPL driver
-  project/         .mbproj model, IndexedDB store, import/export
+  project/         .bloq model, IndexedDB store, import/export
   ui/              xterm terminal, project library dialog
   main.ts          app wiring
-examples/          example projects (.mbproj)
+examples/          example projects (.bloq)
 scripts/           headless tests
 ```
 
 ## Adding things
 
 - **A board:** copy `boards/esp32-c3.json`, edit pins/capabilities/overrides.
-- **A block bundle:** copy a `plugins/core-*/` folder; export a `MicroblockPlugin`
+- **A block bundle:** copy a `plugins/core-*/` folder; export a `BloqPlugin`
   with `blocks` + `generators`. It appears in the toolbox for any board that
   lists it and satisfies its `requires` capabilities.
 

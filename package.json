@@ -1,5 +1,5 @@
 {
-  "name": "microblock",
+  "name": "bloq",
   "version": "0.0.1",
   "description": "Offline block-based MicroPython IDE for robots and boards (Web Serial + Blockly)",
   "type": "module",

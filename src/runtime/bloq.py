@@ -1,5 +1,5 @@
-# Microblock cooperative scheduler runtime.
-# Shipped to the device filesystem (/lib/mbruntime.py) and imported ONLY when a
+# Bloq cooperative scheduler runtime.
+# Shipped to the device filesystem (/lib/bloq.py) and imported ONLY when a
 # program needs concurrency (more than one hat, or a block that requires the
 # scheduler). Single-hat programs generate plain linear code and never import
 # this, so beginners get readable, one-to-one-with-blocks MicroPython.

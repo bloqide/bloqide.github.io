@@ -3,7 +3,7 @@ import { fromFile, pickFile, newId } from "../project/serde";
 import type { ProjectRecord } from "../project/types";
 
 // The "Open…" project library dialog: lists saved projects with open/duplicate/
-// delete, and imports .mbproj files. Uses a native <dialog>. Opening a project
+// delete, and imports .bloq files. Uses a native <dialog>. Opening a project
 // is delegated to the caller (it owns the workspace); everything else is handled
 // here against the store, then the list re-renders.
 

@@ -1,4 +1,4 @@
-import type { MicroblockPlugin, GenContext } from "../../src/core/types";
+import type { BloqPlugin, GenContext } from "../../src/core/types";
 import type * as Blockly from "blockly";
 
 // Control blocks: program entry (hats), loops, waits, and the raw-code escape
@@ -6,7 +6,7 @@ import type * as Blockly from "blockly";
 // scheduler themselves. Two `when_started` stacks => scheduler mode; a single
 // one => plain linear code.
 
-export const plugin: MicroblockPlugin = {
+export const plugin: BloqPlugin = {
   id: "core-control",
   name: "Control",
   version: "1.0.0",

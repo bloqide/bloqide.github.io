@@ -32,7 +32,7 @@ export interface BoardLibrary {
 export interface BoardExampleRef {
   id: string;
   name: string;
-  /** Path to a separate .mbproj file — lazy-loaded only when opened. */
+  /** Path to a separate .bloq file — lazy-loaded only when opened. */
   file: string;
 }
 
@@ -133,7 +133,7 @@ export interface BlockDef {
   requiresScheduler?: boolean;
 }
 
-export interface MicroblockPlugin {
+export interface BloqPlugin {
   id: string;
   name: string;
   version: string;
