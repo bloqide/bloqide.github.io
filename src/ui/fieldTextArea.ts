@@ -1,22 +1,17 @@
 import * as Blockly from "blockly";
 
-// A multi-line text field rendered as a real HTML <textarea> inside the block,
-// resizable by its bottom-right corner (CSS `resize: both`). The chosen width /
-// height are stored alongside the text so the size persists with the project.
-// Used by the comment block and the raw-MicroPython block.
+// A multi-line text field rendered as a real HTML <textarea> inside the block.
+// The block is resized by a custom bottom-right grip that WE drive from the
+// pointer drag (rather than the textarea's native CSS resize), so the gesture
+// is smooth and snaps cleanly to the workspace grid. The chosen width / height
+// are stored with the text so the size persists with the project.
 
 const DEFAULT_W = 240;
 const DEFAULT_H = 72;
 const MIN_W = 60;
 const MIN_H = 28;
-// Margin between the textarea and its field box, so the textarea (and its resize
-// handle) sits cleanly inside the block chrome instead of under the border.
-const PAD = 6;
-
-interface TextAreaConfig extends Blockly.FieldConfig {
-  width?: number;
-  height?: number;
-}
+const PAD = 3; // textarea inset within the field box
+const GRIP = 14; // resize-grip hit/visual size
 
 // Resizing changes the field's serialized size but fires no Blockly event, so
 // nothing would persist it. The app registers a handler here to autosave.
@@ -25,12 +20,17 @@ export function setTextAreaResizeHandler(cb: () => void): void {
   onResize = cb;
 }
 
+interface TextAreaConfig extends Blockly.FieldConfig {
+  width?: number;
+  height?: number;
+}
+
 export class FieldTextArea extends Blockly.Field<string> {
   private ta: HTMLTextAreaElement | null = null;
   private fo: SVGForeignObjectElement | null = null;
+  private handle: SVGGElement | null = null;
   private w = DEFAULT_W;
   private h = DEFAULT_H;
-  private ro: ResizeObserver | null = null;
 
   constructor(value?: string, config?: TextAreaConfig) {
     super(value ?? "", null, config);
@@ -47,10 +47,11 @@ export class FieldTextArea extends Blockly.Field<string> {
   }
 
   protected override initView(): void {
+    const group = this.fieldGroup_ as SVGGElement;
     this.fo = Blockly.utils.dom.createSvgElement(
       "foreignObject",
       { x: 0, y: 0, width: this.w, height: this.h },
-      this.fieldGroup_ as SVGGElement
+      group
     ) as unknown as SVGForeignObjectElement;
 
     const ta = document.createElement("textarea");
@@ -59,21 +60,36 @@ export class FieldTextArea extends Blockly.Field<string> {
     ta.value = this.getValue() ?? "";
     ta.spellcheck = false;
     ta.addEventListener("input", () => this.setValue(ta.value));
-    // Stop block/workspace gestures from hijacking clicks, text selection, and
-    // the corner-drag resize.
+    // Keep block/workspace gestures from hijacking clicks and text selection.
     for (const t of ["pointerdown", "mousedown", "touchstart", "wheel"]) {
       ta.addEventListener(t, (e) => e.stopPropagation());
     }
     this.fo.appendChild(ta);
     this.ta = ta;
-    this.applySize();
 
-    this.ro = new ResizeObserver(() => this.syncFromTextarea());
-    this.ro.observe(ta);
+    // Bottom-right resize grip (drawn on top of the text area corner).
+    this.handle = Blockly.utils.dom.createSvgElement(
+      "g",
+      { class: "bloq-resize-handle" },
+      group
+    ) as SVGGElement;
+    Blockly.utils.dom.createSvgElement(
+      "path",
+      { class: "bloq-resize-grip", d: `M${GRIP - 1},4 L4,${GRIP - 1} M${GRIP - 1},${GRIP - 6} L${GRIP - 6},${GRIP - 1}` },
+      this.handle
+    );
+    Blockly.utils.dom.createSvgElement(
+      "rect",
+      { x: 0, y: 0, width: GRIP, height: GRIP, fill: "transparent" },
+      this.handle
+    );
+    this.handle.addEventListener("pointerdown", (e) => this.startResize(e as PointerEvent));
+
+    this.applySize();
   }
 
-  // Size the foreignObject to the field box and the textarea to the box minus
-  // the inset margin on all sides.
+  // Size the foreignObject to the field box, the textarea to the box minus the
+  // inset margin, and place the grip at the bottom-right corner.
   private applySize(): void {
     this.fo?.setAttribute("width", String(this.w));
     this.fo?.setAttribute("height", String(this.h));
@@ -81,39 +97,64 @@ export class FieldTextArea extends Blockly.Field<string> {
       this.ta.style.width = `${this.w - 2 * PAD}px`;
       this.ta.style.height = `${this.h - 2 * PAD}px`;
     }
+    this.handle?.setAttribute("transform", `translate(${this.w - GRIP},${this.h - GRIP})`);
+  }
+
+  private startResize(e: PointerEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const block = this.getSourceBlock() as Blockly.BlockSvg | null;
+    const handle = this.handle;
+    if (!block || !handle) return;
+    const ws = block.workspace as Blockly.WorkspaceSvg;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = this.w;
+    const startH = this.h;
+    handle.setPointerCapture(e.pointerId);
+
+    const move = (ev: PointerEvent) => {
+      ev.stopPropagation();
+      const scale = ws.scale || 1;
+      this.resizeTo(startW + (ev.clientX - startX) / scale, startH + (ev.clientY - startY) / scale);
+    };
+    const up = (ev: PointerEvent) => {
+      ev.stopPropagation();
+      handle.releasePointerCapture(e.pointerId);
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", up);
+      onResize?.(); // persist on release
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", up);
   }
 
   // Pick a field size so the BLOCK outline (field + fixed chrome) lands on the
   // grid. `overhead` is the constant block-vs-field size difference; `ignore`
-  // removes the bottom connection knob from the height so the block *body*
-  // aligns and the knob hangs below the line.
+  // removes the bottom connection knob from the height so the body aligns and
+  // the knob hangs below the line.
   private snapOuter(fieldPx: number, overhead: number, ignore: number, min: number, step: number): number {
     const body = Math.round((fieldPx + overhead - ignore) / step) * step;
     return Math.max(min, body - overhead + ignore);
   }
 
-  // Corner-drag changed the textarea size → snap the block to the grid, adopt
-  // the result, and re-lay-out. Writing the snapped size back makes the drag
-  // "click" into grid steps.
-  private syncFromTextarea(): void {
-    if (!this.ta) return;
+  // Snap the requested field-box size to the grid (via the block outline) and
+  // apply it live.
+  private resizeTo(fieldW: number, fieldH: number): void {
     const block = this.getSourceBlock() as Blockly.BlockSvg | null;
     const step = block?.workspace?.getGrid?.()?.getSpacing?.() || 24;
-    // Fixed chrome around the field (block outline minus field), measured live.
     const oW = block ? Math.max(0, block.width - this.w) : 0;
     const oH = block ? Math.max(0, block.height - this.h) : 0;
     const knob = block ? block.workspace.getRenderer().getConstants().NOTCH_HEIGHT : 0;
-
-    // offsetWidth/Height are the textarea box; the field box is that plus the
-    // inset margin on both sides. Snap the field box (via the block outline).
-    const w = this.snapOuter(this.ta.offsetWidth + 2 * PAD, oW, 0, MIN_W, step);
-    const h = this.snapOuter(this.ta.offsetHeight + 2 * PAD, oH, knob, MIN_H, step);
+    const w = this.snapOuter(fieldW, oW, 0, MIN_W, step);
+    const h = this.snapOuter(fieldH, oH, knob, MIN_H, step);
     if (w === this.w && h === this.h) return;
     this.w = w;
     this.h = h;
     this.applySize();
     this.forceRerender();
-    onResize?.(); // persist the new size (fires only on an actual grid step)
   }
 
   protected override updateSize_(): void {
@@ -144,12 +185,6 @@ export class FieldTextArea extends Blockly.Field<string> {
     if (this.ta) this.ta.value = this.getValue() ?? "";
     this.applySize();
     this.forceRerender();
-  }
-
-  override dispose(): void {
-    this.ro?.disconnect();
-    this.ro = null;
-    super.dispose();
   }
 }
 
