@@ -73,6 +73,23 @@ if (!Blockly.Extensions.isRegistered(JOIN_MUTATOR)) {
   });
 }
 
+// Turn escape sequences a user types in a text field (\n \t \r \\ \" \' \0)
+// into the real characters, so they render as a newline/tab rather than literal
+// backslash-n. `\\` escapes the backslash itself. JSON.stringify then re-encodes
+// the result into a valid MicroPython string literal.
+function pyString(text: string): string {
+  const unescaped = text.replace(/\\(["'\\nrt0])/g, (_, ch) => {
+    switch (ch) {
+      case "n": return "\n";
+      case "t": return "\t";
+      case "r": return "\r";
+      case "0": return "\0";
+      default: return ch; // \\  \"  \'
+    }
+  });
+  return JSON.stringify(unescaped);
+}
+
 // ---------------------------------------------------------------------------
 
 export const plugin: BloqPlugin = {
@@ -90,6 +107,17 @@ export const plugin: BloqPlugin = {
         args0: [{ type: "field_input", name: "TEXT", text: "" }],
         output: null,
         colour: 45,
+        tooltip: "A piece of text. Type \\n for a newline, \\t for a tab.",
+      },
+    },
+    text_newline: {
+      kind: "value",
+      json: {
+        type: "text_newline",
+        message0: "↵ newline",
+        output: null,
+        colour: 45,
+        tooltip: "A line break (same as \\n).",
       },
     },
     // Variadic string join with inline + / − buttons (see JOIN_MUTATOR above).
@@ -103,6 +131,28 @@ export const plugin: BloqPlugin = {
         colour: 45,
         mutator: JOIN_MUTATOR,
         tooltip: "Join values into one string. Use + / − to add or remove slots.",
+      },
+    },
+    // Fixed two-slot join — handy for one-liner "label + value" prints.
+    text_join2: {
+      kind: "value",
+      json: {
+        type: "text_join2",
+        message0: "%1 join %2",
+        args0: [
+          { type: "input_value", name: "A" },
+          { type: "input_value", name: "B" },
+        ],
+        inputsInline: true,
+        output: null,
+        colour: 45,
+        tooltip: "Join two values into one string.",
+      },
+      toolbox: {
+        inputs: {
+          A: { shadow: { type: "text_literal", fields: { TEXT: "value: " } } },
+          B: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+        },
       },
     },
     print_terminal: {
@@ -124,9 +174,11 @@ export const plugin: BloqPlugin = {
   },
 
   generators: {
-    // Python string literal — JSON.stringify escapes quotes/backslashes/newlines
-    // into a form MicroPython accepts verbatim.
-    text_literal: (block: Blockly.Block) => JSON.stringify(String(block.getFieldValue("TEXT") ?? "")),
+    // Python string literal, with \n / \t etc. interpreted (see pyString).
+    text_literal: (block: Blockly.Block) => pyString(String(block.getFieldValue("TEXT") ?? "")),
+    text_newline: () => JSON.stringify("\n"),
+    text_join2: (block: Blockly.Block, ctx: GenContext) =>
+      `(str(${ctx.value(block, "A", "''")}) + str(${ctx.value(block, "B", "''")}))`,
     text_join: (block: Blockly.Block, ctx: GenContext) => {
       // Concatenate every item slot, coercing each to str so numbers join too.
       const parts: string[] = [];

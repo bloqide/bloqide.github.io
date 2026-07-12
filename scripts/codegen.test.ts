@@ -407,5 +407,41 @@ function num(w: Blockly.Workspace, n: number) {
   expect("text join +1 slot", cg().generate(w).code, ["print((str(1) + str(2) + str(3)))"]);
 }
 
+// --- Test 19: text field \n / \t become real control chars; newline block ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const lit = w.newBlock("text_literal");
+  lit.setFieldValue("a\\nb", "TEXT"); // user typed: a\nb
+  plug(pr, "MSG", lit);
+  connectChain(hat, pr);
+  // Generated Python literal carries a real \n escape, not \\n.
+  expect("text escape -> real newline", cg().generate(w).code, ['print("a\\nb")']);
+}
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  plug(pr, "MSG", w.newBlock("text_newline"));
+  connectChain(hat, pr);
+  expect("newline block", cg().generate(w).code, ['print("\\n")']);
+}
+
+// --- Test 20: fixed two-slot join (label + value) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const join = w.newBlock("text_join2");
+  const lit = w.newBlock("text_literal");
+  lit.setFieldValue("x=", "TEXT");
+  plug(join, "A", lit);
+  plug(join, "B", num(w, 5));
+  plug(pr, "MSG", join);
+  connectChain(hat, pr);
+  expect("two-slot join", cg().generate(w).code, ['print((str("x=") + str(5)))']);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
