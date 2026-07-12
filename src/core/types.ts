@@ -32,6 +32,7 @@ export interface BoardLibrary {
 export interface BoardExampleRef {
   id: string;
   name: string;
+  description?: string;
   /** Path to a separate .bloq file — lazy-loaded only when opened. */
   file: string;
 }

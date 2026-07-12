@@ -11,6 +11,7 @@ import type { SerialService } from "./serial/serialService";
 import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
 import { initBoardPicker } from "./ui/boardPicker";
+import { initExamplesPicker } from "./ui/examplesPicker";
 import { setTextAreaResizeHandler } from "./ui/fieldTextArea";
 import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
@@ -635,6 +636,13 @@ const boardPicker = initBoardPicker({
   },
 });
 document.getElementById("board-label")!.addEventListener("click", () => boardPicker.open());
+
+// Examples — full-project templates for the current board, opened in a new tab.
+const examplesPicker = initExamplesPicker({
+  currentBoardId: () => board.id,
+  onOpen: (rec) => openProject(rec),
+});
+document.getElementById("btn-examples")!.addEventListener("click", () => examplesPicker.open());
 document.getElementById("btn-new")!.addEventListener("click", () =>
   openProject(newRecord("Untitled", DEFAULT_BOARD))
 );

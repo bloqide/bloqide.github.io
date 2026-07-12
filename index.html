@@ -14,6 +14,7 @@
           <button id="project-name" class="project-name" title="Click to rename">Untitled</button>
           <button id="btn-new" title="New project"><i class="fa-solid fa-file"></i> New</button>
           <button id="btn-open" title="Open project"><i class="fa-solid fa-folder-open"></i> Open</button>
+          <button id="btn-examples" title="Open an example"><i class="fa-solid fa-lightbulb"></i> Examples</button>
           <button id="btn-export" title="Export .bloq"><i class="fa-solid fa-download"></i> Export</button>
         </div>
         <div class="group">
@@ -82,6 +83,18 @@
         <button data-act="close">×</button>
       </div>
       <div class="board-grid"></div>
+      <div class="dialog-foot">
+        <button data-act="close">Close</button>
+      </div>
+    </dialog>
+
+    <!-- Examples -->
+    <dialog id="examples-dialog">
+      <div class="dialog-head">
+        <strong>Examples</strong>
+        <button data-act="close">×</button>
+      </div>
+      <div class="examples-grid"></div>
       <div class="dialog-foot">
         <button data-act="close">Close</button>
       </div>
