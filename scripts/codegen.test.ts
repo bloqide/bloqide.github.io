@@ -443,5 +443,16 @@ function num(w: Blockly.Workspace, n: number) {
   expect("two-slot join", cg().generate(w).code, ['print((str("x=") + str(5)))']);
 }
 
+// --- Test 21: comment block emits # lines ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const c = w.newBlock("comment");
+  c.setFieldValue("explain this\nsecond line", "TEXT");
+  const led = w.newBlock("gpio_toggle_led");
+  connectChain(hat, c, led);
+  expect("comment block", cg().generate(w).code, ["# explain this", "# second line", ".value(not "]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

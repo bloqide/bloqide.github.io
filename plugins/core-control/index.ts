@@ -1,5 +1,6 @@
 import type { BloqPlugin, GenContext } from "../../src/core/types";
 import type * as Blockly from "blockly";
+import "../../src/ui/fieldTextArea"; // registers the resizable "field_textarea"
 
 // Control blocks: program entry (hats), loops, waits, and the raw-code escape
 // hatch. These blocks ADAPT to the active codegen mode — they never force the
@@ -267,7 +268,7 @@ export const plugin: BloqPlugin = {
         message0: "MicroPython %1 %2",
         args0: [
           { type: "input_dummy" },
-          { type: "field_multilinetext", name: "CODE", text: "# your code here" },
+          { type: "field_textarea", name: "CODE", text: "# your code here" },
         ],
         previousStatement: null,
         nextStatement: null,

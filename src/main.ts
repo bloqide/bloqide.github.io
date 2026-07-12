@@ -10,6 +10,7 @@ import { ConnectionPool } from "./serial/connectionManager";
 import type { SerialService } from "./serial/serialService";
 import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
+import { setTextAreaResizeHandler } from "./ui/fieldTextArea";
 import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
 import type { ProjectRecord } from "./project/types";
@@ -205,6 +206,9 @@ workspace.addChangeListener((e: Blockly.Events.Abstract) => {
     raiseFloatingValueBlocks();
   }
 });
+
+// Persist a text-area field resize (it fires no Blockly event of its own).
+setTextAreaResizeHandler(() => autosave());
 
 // ---- Detach / revert ----
 const detachToggle = document.getElementById("detach-toggle") as HTMLInputElement;

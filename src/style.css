@@ -261,6 +261,26 @@ button.danger:hover { background: #f38ba8; color: #11111b; }
   text-align: center;
 }
 
+/* In-block resizable text area (comment / raw MicroPython blocks). */
+.bloq-textarea {
+  box-sizing: border-box;
+  display: block;
+  min-width: 48px;
+  min-height: 16px;
+  resize: both;
+  overflow: auto;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1e1e2e;
+  background: rgba(255, 255, 255, 0.92);
+  white-space: pre;
+}
+
 /* Blocks with no code generator: filled vivid red so they're obviously broken. */
 .bloq-unknown-block > .blocklyPath {
   fill: #ff1414 !important;

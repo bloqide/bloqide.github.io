@@ -1,5 +1,6 @@
 import * as Blockly from "blockly";
 import type { BloqPlugin, GenContext } from "../../src/core/types";
+import "../../src/ui/fieldTextArea"; // registers the resizable "field_textarea"
 
 // Text: string literals, concatenation, and printing to the serial terminal.
 // `text_literal`/`text_join` are value blocks (return an expression);
@@ -155,6 +156,18 @@ export const plugin: BloqPlugin = {
         },
       },
     },
+    comment: {
+      kind: "statement",
+      json: {
+        type: "comment",
+        message0: "note %1",
+        args0: [{ type: "field_textarea", name: "TEXT", text: "" }],
+        previousStatement: null,
+        nextStatement: null,
+        colour: 60,
+        tooltip: "A comment to explain the code. Does nothing when the program runs.",
+      },
+    },
     print_terminal: {
       kind: "statement",
       json: {
@@ -189,6 +202,10 @@ export const plugin: BloqPlugin = {
     },
     print_terminal: (block: Blockly.Block, ctx: GenContext) => {
       ctx.line(`print(${ctx.value(block, "MSG", "''")})`, block.id);
+    },
+    comment: (block: Blockly.Block, ctx: GenContext) => {
+      const text = String(block.getFieldValue("TEXT") ?? "");
+      for (const ln of text.split("\n")) ctx.line(ln === "" ? "#" : `# ${ln}`, block.id);
     },
   },
 };
