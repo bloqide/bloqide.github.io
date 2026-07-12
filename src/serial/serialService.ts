@@ -206,41 +206,28 @@ export class SerialService {
     }
   }
 
-  /**
-   * Soft-reboot to reinitialize peripherals before a fresh Run, so leftover
-   * hardware state from a previous Run (e.g. a pin left as a plain GPIO output
-   * blocking a later PWM) can't linger. Best effort: if the handshake times out,
-   * fall through — execRaw's own Ctrl-C + raw REPL still runs the program.
-   */
-  private async softReset(): Promise<void> {
-    try {
-      await this.write(CTRL_C + CTRL_C); // stop whatever's running
-      this.rx = "";
-      await this.write(CTRL_D); // soft reboot -> peripherals reinitialized
-      await this.waitFor("soft reboot", 3000);
-      // A saved main.py auto-runs after reboot; interrupt it to reach a clean
-      // prompt (Ctrl-C also breaks an initial sleep).
-      await delay(200);
-      this.rx = "";
-      await this.write(CTRL_C + CTRL_C);
-      await this.waitFor(">>>", 3000);
-    } catch {
-      /* handshake timed out — proceed anyway */
-    }
+  /** Write the program as /main.py and soft-reboot so it runs on a fresh board. */
+  private async flashAndReboot(code: string): Promise<void> {
+    await this.writeFile("/main.py", code);
+    await this.write(CTRL_D); // soft reboot -> peripherals reset, main.py runs
   }
 
-  /** Run the program now (RAM only; flash main.py untouched). */
+  /**
+   * Run the program. This is a flash + soft-reboot (same as Save), NOT an
+   * in-RAM exec: a fresh reboot guarantees a clean peripheral state, avoiding
+   * the RAM-run quirk where leftover hardware config (e.g. a pin left as a plain
+   * GPIO output) blocked a later PWM. Trying to soft-reset before an in-RAM run
+   * couldn't win the race against a saved main.py re-initializing peripherals.
+   */
   async run(code: string): Promise<void> {
-    this.cb.onData("\r\n[run] resetting + uploading…\r\n");
-    await this.softReset();
-    await this.execRaw(code);
+    this.cb.onData("\r\n[run] uploading + reboot…\r\n");
+    await this.flashAndReboot(code);
   }
 
   /** Persist the program as /main.py and soft-reboot so it runs on power-up. */
   async saveToBoard(code: string): Promise<void> {
     this.cb.onData("\r\n[save] writing main.py…\r\n");
-    await this.writeFile("/main.py", code);
-    await this.write(CTRL_D); // soft reboot -> runs main.py
+    await this.flashAndReboot(code);
   }
 
   async stop(): Promise<void> {
