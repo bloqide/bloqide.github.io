@@ -36,6 +36,10 @@ export interface BoardExampleRef {
   file: string;
 }
 
+/** A ready-made block snippet for a toolbox flyout — a Blockly block/stack in
+ *  serialization form (`{ kind: "block", type, fields?, inputs?, next? }`). */
+export type PresetSnippet = Record<string, unknown>;
+
 export interface BoardOverride {
   /** Extra imports this dialect needs for the overridden block. */
   imports?: string[];
@@ -91,6 +95,10 @@ export interface Board {
 
   libraries?: BoardLibrary[];
   examples?: BoardExampleRef[];
+
+  /** Extra toolbox preset snippets, keyed by category name (lets a board add
+   *  cross-plugin snippets, e.g. a gamepad-drive stack to the Bluetooth cat). */
+  presets?: Record<string, PresetSnippet[]>;
 
   /** Per-block-type codegen overrides for this dialect. */
   overrides?: Record<string, BoardOverride>;
@@ -166,6 +174,8 @@ export interface BloqPlugin {
 
   libraries?: BoardLibrary[]; // device .py deps, merged into the sync set
   examples?: BoardExampleRef[];
+  /** Ready-made block snippets appended to this plugin's toolbox category. */
+  presets?: PresetSnippet[];
 
   /** Block type -> definition. */
   blocks: Record<string, BlockDef>;

@@ -91,10 +91,22 @@ export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinit
     } else {
       // A block yields one flyout entry, or several when its `toolbox` is an
       // array of variants (e.g. one preset per operator of a dropdown block).
-      category.contents = Object.entries(plugin.blocks).flatMap(([type, def]) => {
-        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
-        return variants.map((extra) => ({ kind: "block", type, ...extra }));
-      });
+      const contents: Record<string, unknown>[] = Object.entries(plugin.blocks).flatMap(
+        ([type, def]) => {
+          const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
+          return variants.map((extra) => ({ kind: "block", type, ...extra }));
+        }
+      );
+      // Preset snippets: the plugin's own, plus any the board targets at this
+      // category. Grouped under a label at the bottom of the flyout.
+      const presets = [
+        ...(plugin.presets ?? []),
+        ...(board.presets?.[plugin.toolbox.category] ?? []),
+      ];
+      if (presets.length) {
+        contents.push({ kind: "label", text: "Presets" }, ...presets);
+      }
+      category.contents = contents;
     }
     return category;
   });
