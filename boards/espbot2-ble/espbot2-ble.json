@@ -40,7 +40,7 @@
 
   "onboard": [{ "type": "led", "pin": 9, "name": "onboard LED (GPIO9)" }],
 
-  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi", "ble"],
+  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi", "ble", "neopixel"],
   "plugins": [
     "core-control",
     "core-gpio",
@@ -48,6 +48,7 @@
     "core-math",
     "core-text",
     "core-variables",
+    "core-neopixel",
     "espbot-motors",
     "espbot-ble"
   ],

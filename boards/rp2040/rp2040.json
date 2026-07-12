@@ -40,8 +40,8 @@
 
   "onboard": [{ "type": "led", "pin": 25, "name": "onboard LED (GP25)" }],
 
-  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart"],
-  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables"],
+  "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "neopixel"],
+  "plugins": ["core-control", "core-gpio", "core-logic", "core-math", "core-text", "core-variables", "core-neopixel"],
 
   "libraries": [],
   "examples": [],

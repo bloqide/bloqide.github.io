@@ -11,6 +11,7 @@ import { plugin as text } from "../plugins/core-text/index";
 import { plugin as variables } from "../plugins/core-variables/index";
 import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
 import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
+import { plugin as neopixel } from "../plugins/core-neopixel/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
 // Register block definitions (resolve the pin-dropdown tokens to real options).
@@ -22,7 +23,7 @@ const pinTokens: Record<string, number[]> = {
 };
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
-for (const p of [control, gpio, logic, math, text, variables, motors, ble]) {
+for (const p of [control, gpio, logic, math, text, variables, motors, ble, neopixel]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     const json = JSON.parse(JSON.stringify(def.json));
     for (const k of Object.keys(json)) {
@@ -571,6 +572,32 @@ function num(w: Blockly.Workspace, n: number) {
     "pin_8_out = Pin(8, Pin.OUT)",
     "pin_8_out.value(1)",
     "Pin(4, Pin.OUT).value(0)",
+  ]);
+}
+
+// --- Test 27: NeoPixel setup / colour / set / fill / show ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const setup = w.newBlock("neopixel_setup");
+  setup.setFieldValue("4", "PIN");
+  setup.setFieldValue(10, "COUNT");
+  const set = w.newBlock("neopixel_set");
+  set.setFieldValue("4", "PIN");
+  plug(set, "INDEX", num(w, 0));
+  const col = w.newBlock("neopixel_colour");
+  plug(col, "R", num(w, 255));
+  plug(col, "G", num(w, 0));
+  plug(col, "B", num(w, 0));
+  plug(set, "COLOR", col);
+  const show = w.newBlock("neopixel_show");
+  show.setFieldValue("4", "PIN");
+  connectChain(hat, setup, set, show);
+  expect("neopixel", cg().generate(w).code, [
+    "from neopixel import NeoPixel",
+    "np_4 = NeoPixel(Pin(4), 10)",
+    "np_4[0] = (255, 0, 0)",
+    "np_4.write()",
   ]);
 }
 
