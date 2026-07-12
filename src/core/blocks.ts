@@ -9,34 +9,53 @@ import { activePlugins } from "./registry";
 
 type OptionList = [string, string][];
 
-function digitalPinOptions(board: Board): OptionList {
-  const opts: OptionList = [];
-  for (const [name, expr] of Object.entries(board.pins.aliases)) {
-    opts.push([`${name} (${expr})`, String(expr)]);
-  }
-  for (const p of board.pins.digital) opts.push([`GPIO${p}`, String(p)]);
+const gpio = (nums: number[]): OptionList => nums.map((p) => [`GPIO${p}`, String(p)]);
+const aliasOpts = (board: Board): OptionList =>
+  Object.entries(board.pins.aliases).map(([name, expr]) => [`${name} (${expr})`, String(expr)]);
+
+// Output-ish dropdowns (write, PWM): aliases first, so the LED is a natural
+// default. Input dropdowns (read, button): real GPIOs first, so they don't
+// default to an output alias like the LED.
+function outputPinOptions(board: Board): OptionList {
+  const opts = [...aliasOpts(board), ...gpio(board.pins.digital)];
   return opts.length ? opts : [["0", "0"]];
 }
-
+function inputPinOptions(board: Board): OptionList {
+  const opts = [...gpio(board.pins.digital), ...aliasOpts(board)];
+  return opts.length ? opts : [["0", "0"]];
+}
 function analogPinOptions(board: Board): OptionList {
-  const opts: OptionList = board.pins.analog.map((p) => [`GPIO${p}`, String(p)]);
+  const opts = gpio(board.pins.analog);
+  return opts.length ? opts : [["0", "0"]];
+}
+function pwmPinOptions(board: Board): OptionList {
+  const opts = [...aliasOpts(board), ...gpio(board.pins.pwm)];
   return opts.length ? opts : [["0", "0"]];
 }
 
 const TOKENS: Record<string, (b: Board) => OptionList> = {
-  $BOARD_DIGITAL_PINS: digitalPinOptions,
+  $BOARD_OUTPUT_PINS: outputPinOptions,
+  $BOARD_INPUT_PINS: inputPinOptions,
   $BOARD_ANALOG_PINS: analogPinOptions,
+  $BOARD_PWM_PINS: pwmPinOptions,
+  $BOARD_DIGITAL_PINS: outputPinOptions, // backward-compat alias
 };
 
-/** Deep-clone a block JSON, replacing option tokens with live providers. */
-function resolveTokens(json: Record<string, unknown>, board: Board): Record<string, unknown> {
+// The board whose pins the dropdowns should reflect right now. Kept live so
+// switching boards updates every pin dropdown without re-defining blocks.
+let activeBoard: Board | null = null;
+
+/** Deep-clone a block JSON, replacing option tokens with a live provider bound
+ *  to the current board (so dropdowns follow board switches). */
+function resolveTokens(json: Record<string, unknown>): Record<string, unknown> {
   const clone = JSON.parse(JSON.stringify(json));
   for (const key of Object.keys(clone)) {
     if (!key.startsWith("args")) continue;
     const args = clone[key] as Array<Record<string, unknown>>;
     for (const arg of args) {
       if (typeof arg.options === "string" && arg.options in TOKENS) {
-        arg.options = TOKENS[arg.options as string](board);
+        const provider = TOKENS[arg.options as string];
+        arg.options = () => (activeBoard ? provider(activeBoard) : [["0", "0"]]);
       }
     }
   }
@@ -55,11 +74,12 @@ let registeredForBoard: string | null = null;
 
 /** (Re)register all block definitions for the given board. */
 export function registerBlocks(board: Board): void {
+  activeBoard = board; // pin dropdowns read this live, so update it even if we skip re-defining
   if (registeredForBoard === board.id) return;
   for (const plugin of activePlugins(board)) {
     plugin.onBoardChange?.(board);
     for (const [type, def] of Object.entries(plugin.blocks)) {
-      const json = resolveTokens(def.json, board);
+      const json = resolveTokens(def.json);
       // defineBlocks replaces any existing definition of the same type.
       Blockly.common.defineBlocks(
         Blockly.common.createBlockDefinitionsFromJsonArray([json])
