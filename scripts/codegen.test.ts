@@ -13,7 +13,13 @@ import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
 import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
-// Register block definitions (resolve the pin-dropdown token to real options).
+// Register block definitions (resolve the pin-dropdown tokens to real options).
+const pinTokens: Record<string, number[]> = {
+  $BOARD_OUTPUT_PINS: (board as any).pins.digital,
+  $BOARD_INPUT_PINS: (board as any).pins.digital,
+  $BOARD_ANALOG_PINS: (board as any).pins.analog,
+  $BOARD_PWM_PINS: (board as any).pins.pwm,
+};
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
 for (const p of [control, gpio, logic, math, text, variables, motors, ble]) {
@@ -22,8 +28,8 @@ for (const p of [control, gpio, logic, math, text, variables, motors, ble]) {
     for (const k of Object.keys(json)) {
       if (!k.startsWith("args")) continue;
       for (const arg of json[k]) {
-        if (arg.options === "$BOARD_DIGITAL_PINS") {
-          arg.options = (board as any).pins.digital.map((n: number) => [`GPIO${n}`, String(n)]);
+        if (typeof arg.options === "string" && arg.options in pinTokens) {
+          arg.options = pinTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]);
         }
       }
     }
@@ -514,6 +520,57 @@ function num(w: Blockly.Workspace, n: number) {
     "if (5 > 3):",
     "elif (1 < 2):",
     "else:",
+  ]);
+}
+
+// --- Test 25: digital read / button / analog read / PWM ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pwm = w.newBlock("gpio_pwm");
+  pwm.setFieldValue("5", "PIN");
+  plug(pwm, "DUTY", num(w, 50));
+  const p1 = w.newBlock("print_terminal");
+  const rd = w.newBlock("gpio_read");
+  rd.setFieldValue("8", "PIN");
+  plug(p1, "MSG", rd);
+  const p2 = w.newBlock("print_terminal");
+  const btn = w.newBlock("gpio_button");
+  btn.setFieldValue("9", "PIN");
+  plug(p2, "MSG", btn);
+  const p3 = w.newBlock("print_terminal");
+  const an = w.newBlock("gpio_analog_read");
+  an.setFieldValue("0", "PIN");
+  plug(p3, "MSG", an);
+  connectChain(hat, pwm, p1, p2, p3);
+  expect("gpio read / button / analog / pwm", cg().generate(w).code, [
+    "pin_8_in = Pin(8, Pin.IN)",
+    "print(pin_8_in.value())",
+    "pin_9_in_pull_up = Pin(9, Pin.IN, Pin.PULL_UP)",
+    "print((pin_9_in_pull_up.value() == 0))",
+    "adc_0 = ADC(Pin(0))",
+    "print(adc_0.read_u16())",
+    "pwm_5 = PWM(Pin(5))",
+    "pwm_5.freq(1000)",
+    "pwm_5.duty_u16(int(50 * 65535 / 100))",
+  ]);
+}
+
+// --- Test 26: set-pin variants — value, and dynamic pin+value ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const wv = w.newBlock("gpio_write_value");
+  wv.setFieldValue("8", "PIN");
+  plug(wv, "VALUE", num(w, 1));
+  const wd = w.newBlock("gpio_write_dynamic");
+  plug(wd, "PIN", num(w, 4));
+  plug(wd, "VALUE", num(w, 0));
+  connectChain(hat, wv, wd);
+  expect("set pin (value / dynamic)", cg().generate(w).code, [
+    "pin_8_out = Pin(8, Pin.OUT)",
+    "pin_8_out.value(1)",
+    "Pin(4, Pin.OUT).value(0)",
   ]);
 }
 
