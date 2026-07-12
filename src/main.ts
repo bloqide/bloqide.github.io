@@ -395,9 +395,7 @@ function syncPool(): void {
   panel.highlight(pool.highlighted);
   const svc = pool.highlightedService();
   const active = !!svc?.connected;
-  (["btn-run", "btn-save-board"] as const).forEach((id) => {
-    (document.getElementById(id) as HTMLButtonElement).disabled = !active;
-  });
+  (document.getElementById("btn-run") as HTMLButtonElement).disabled = !active;
   if (pool.isEmpty()) closeTerminal();
 }
 
@@ -455,20 +453,18 @@ function requiredFiles(): { dest: string; content: string }[] {
 }
 
 // While a flash write is in progress, disable controls that could interrupt it
-// (reset/stop/disconnect/close and Run/Save) — an interrupted write corrupts the
+// (reset/stop/disconnect/close and Run) — an interrupted write corrupts the
 // device filesystem.
 function setBusy(id: string, busy: boolean): void {
   panel.setBusy(id, busy);
   if (busy) {
-    (["btn-run", "btn-save-board"] as const).forEach((b) => {
-      (document.getElementById(b) as HTMLButtonElement).disabled = true;
-    });
+    (document.getElementById("btn-run") as HTMLButtonElement).disabled = true;
   } else {
     syncPool();
   }
 }
 
-// Run / Save use the highlighted device, and link it to the current project.
+// Run uses the highlighted device, and links it to the current project.
 async function sendToDevice(action: (svc: SerialService) => Promise<void>): Promise<void> {
   const svc = pool.highlightedService();
   const id = pool.highlighted;
@@ -487,9 +483,6 @@ async function sendToDevice(action: (svc: SerialService) => Promise<void>): Prom
 
 document.getElementById("btn-run")!.addEventListener("click", () =>
   void sendToDevice((svc) => svc.run(currentCode()))
-);
-document.getElementById("btn-save-board")!.addEventListener("click", () =>
-  void sendToDevice((svc) => svc.saveToBoard(currentCode()))
 );
 
 // Drag the drawer's left edge to resize the whole terminal panel.

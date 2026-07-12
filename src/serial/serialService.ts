@@ -4,8 +4,7 @@ import type { Board } from "../core/types";
 //
 // - connect():  user-gesture port pick + open, then a single read loop feeds the
 //               terminal and buffers bytes for command responses.
-// - run():      raw REPL -> paste program -> Ctrl-D -> execute in RAM.
-// - saveToBoard(): write program as /main.py, then soft-reboot so it runs on boot.
+// - run():      write program as /main.py, then soft-reboot so it runs fresh.
 // - syncLibraries(): upload only changed device files (session hash cache).
 //
 // NB: this implements plain raw REPL (no raw-paste flow control). Fine for the
@@ -213,20 +212,15 @@ export class SerialService {
   }
 
   /**
-   * Run the program. This is a flash + soft-reboot (same as Save), NOT an
-   * in-RAM exec: a fresh reboot guarantees a clean peripheral state, avoiding
-   * the RAM-run quirk where leftover hardware config (e.g. a pin left as a plain
-   * GPIO output) blocked a later PWM. Trying to soft-reset before an in-RAM run
-   * couldn't win the race against a saved main.py re-initializing peripherals.
+   * Run the program: write /main.py and soft-reboot (so it also persists and
+   * runs on power-up). A flash + reboot, NOT an in-RAM exec — a fresh reboot
+   * guarantees a clean peripheral state, avoiding the RAM-run quirk where
+   * leftover hardware config (e.g. a pin left as a plain GPIO output) blocked a
+   * later PWM. (Soft-resetting before an in-RAM run couldn't win the race
+   * against a saved main.py re-initializing peripherals.)
    */
   async run(code: string): Promise<void> {
     this.cb.onData("\r\n[run] uploading + reboot…\r\n");
-    await this.flashAndReboot(code);
-  }
-
-  /** Persist the program as /main.py and soft-reboot so it runs on power-up. */
-  async saveToBoard(code: string): Promise<void> {
-    this.cb.onData("\r\n[save] writing main.py…\r\n");
     await this.flashAndReboot(code);
   }
 
