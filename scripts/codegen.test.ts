@@ -9,12 +9,14 @@ import { plugin as logic } from "../plugins/core-logic/index";
 import { plugin as math } from "../plugins/core-math/index";
 import { plugin as text } from "../plugins/core-text/index";
 import { plugin as variables } from "../plugins/core-variables/index";
+import { plugin as motors } from "../plugins/espbot-motors/index";
+import { plugin as ble } from "../plugins/espbot-ble/index";
 import board from "../boards/esp32-c3.json";
 
 // Register block definitions (resolve the pin-dropdown token to real options).
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
-for (const p of [control, gpio, logic, math, text, variables]) {
+for (const p of [control, gpio, logic, math, text, variables, motors, ble]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     const json = JSON.parse(JSON.stringify(def.json));
     for (const k of Object.keys(json)) {
@@ -452,6 +454,41 @@ function num(w: Blockly.Workspace, n: number) {
   const led = w.newBlock("gpio_toggle_led");
   connectChain(hat, c, led);
   expect("comment block", cg().generate(w).code, ["# explain this", "# second line", ".value(not "]);
+}
+
+// --- Test 22: EspBot motor block emits driver call + ships the library ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const m = w.newBlock("motor_spin");
+  m.setFieldValue("EspBot.MotorLeft", "MOTOR");
+  m.setFieldValue("EspBot.Forward", "DIR");
+  plug(m, "SPEED", num(w, 50));
+  connectChain(hat, m);
+  const r = cg().generate(w);
+  expect("motor spin", r.code, [
+    "import espbot",
+    "from espbot import EspBot",
+    "espbot.motors.spin(EspBot.MotorLeft, EspBot.Forward, 50)",
+  ]);
+  console.assert(r.requiredLibraries.has("/lib/espbot.py"), "espbot.py required");
+}
+
+// --- Test 23: BLE controller-pad value block + library ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pr = w.newBlock("print_terminal");
+  const btn = w.newBlock("ble_button"); // defaults: up / pressed
+  plug(pr, "MSG", btn);
+  connectChain(hat, pr);
+  const r = cg().generate(w);
+  expect("ble controller pad", r.code, [
+    "import bleuart",
+    "from bleuart import BleControlPad",
+    "print((bleuart.controlPad.isButtonPressed(BleControlPad.ButtonUp) == True))",
+  ]);
+  console.assert(r.requiredLibraries.has("/lib/bleuart.py"), "bleuart.py required");
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
