@@ -135,10 +135,36 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .code-line.mapped { cursor: pointer; }
 .code-line.mapped:hover { background: var(--mapped); }
 .code-line.hot { background: var(--hot); }
+/* Syntax highlight tokens (read-only view + detached overlay). */
+.tok-comment { color: #6c7086; font-style: italic; }
+.tok-kw { color: #cba6f7; }
+.tok-const { color: #fab387; }
+.tok-builtin { color: #89dceb; }
+.tok-string { color: #a6e3a1; }
+.tok-num { color: #fab387; }
+
+/* Editable (detached) code: a transparent textarea over a highlighted layer,
+   with a synced line-number gutter. */
+#code-edit-wrap { flex: 1; display: flex; min-height: 0; }
+#code-gutter {
+  flex: 0 0 auto; margin: 0; overflow: hidden;
+  padding: 8px 8px 8px 12px;
+  font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.5;
+  color: #585b70; text-align: right; user-select: none;
+  background: var(--panel); white-space: pre;
+}
+#code-edit-inner { position: relative; flex: 1; min-width: 0; background: var(--panel); }
+#code-highlight,
 #code-edit {
-  flex: 1; resize: none; border: 0; outline: 0;
-  background: var(--panel); color: var(--fg);
-  font-family: ui-monospace, monospace; font-size: 12.5px; padding: 8px 12px;
+  margin: 0; position: absolute; inset: 0; box-sizing: border-box;
+  padding: 8px 12px 8px 4px; border: 0;
+  font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.5;
+  white-space: pre; tab-size: 4;
+}
+#code-highlight { color: var(--fg); overflow: hidden; pointer-events: none; }
+#code-edit {
+  background: transparent; color: transparent; caret-color: var(--fg);
+  resize: none; outline: 0; overflow: auto;
 }
 .hidden { display: none !important; }
 

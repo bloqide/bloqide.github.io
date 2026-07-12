@@ -12,6 +12,7 @@ import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
 import { initBoardPicker } from "./ui/boardPicker";
 import { initExamplesPicker } from "./ui/examplesPicker";
+import { highlightPython, highlightCode } from "./ui/highlight";
 import { setTextAreaResizeHandler } from "./ui/fieldTextArea";
 import { projectStore } from "./project/store";
 import { newRecord, download } from "./project/serde";
@@ -171,6 +172,25 @@ let detached = false;
 
 const codeView = document.getElementById("code-view")!;
 const codeEdit = document.getElementById("code-edit") as HTMLTextAreaElement;
+const codeEditWrap = document.getElementById("code-edit-wrap")!;
+const codeGutter = document.getElementById("code-gutter")!;
+const codeHighlight = document.getElementById("code-highlight")!;
+
+// Detached textarea: a syntax-highlighted layer sits behind the (transparent)
+// textarea, plus a line-number gutter. Keep numbers + highlight + scroll synced.
+function updateEditor(): void {
+  const lines = codeEdit.value.split("\n");
+  let g = "";
+  for (let i = 1; i <= lines.length; i++) g += i + "\n";
+  codeGutter.textContent = g;
+  codeHighlight.innerHTML = highlightCode(codeEdit.value);
+}
+codeEdit.addEventListener("input", updateEditor);
+codeEdit.addEventListener("scroll", () => {
+  codeGutter.scrollTop = codeEdit.scrollTop;
+  codeHighlight.scrollTop = codeEdit.scrollTop;
+  codeHighlight.scrollLeft = codeEdit.scrollLeft;
+});
 const modeBadge = document.getElementById("mode-badge")!;
 
 function regenerate(): void {
@@ -225,7 +245,7 @@ function renderCode(result: GenResult): void {
       div.classList.add("mapped");
     }
     div.innerHTML = `<span class="ln">${lineNo}</span><span class="src"></span>`;
-    div.querySelector(".src")!.textContent = text || " ";
+    div.querySelector(".src")!.innerHTML = text ? highlightPython(text) : " ";
     div.addEventListener("click", () => blockId && selectBlock(blockId));
     codeView.appendChild(div);
   });
@@ -294,7 +314,8 @@ detachToggle.addEventListener("change", () => {
   detached = detachToggle.checked;
   if (detached) {
     codeEdit.value = lastResult?.code ?? "";
-    codeEdit.classList.remove("hidden");
+    updateEditor();
+    codeEditWrap.classList.remove("hidden");
     codeView.classList.add("hidden");
     revertBtn.classList.remove("hidden");
     modeBadge.textContent = "detached (blocks read-only)";
@@ -308,7 +329,7 @@ revertBtn.addEventListener("click", revert);
 function revert(): void {
   detached = false;
   detachToggle.checked = false;
-  codeEdit.classList.add("hidden");
+  codeEditWrap.classList.add("hidden");
   codeView.classList.remove("hidden");
   revertBtn.classList.add("hidden");
   workspace.options.readOnly = false;
@@ -565,7 +586,8 @@ function applyProject(rec: ProjectRecord): void {
     detached = true;
     detachToggle.checked = true;
     codeEdit.value = rec.editedCode ?? "";
-    codeEdit.classList.remove("hidden");
+    updateEditor();
+    codeEditWrap.classList.remove("hidden");
     codeView.classList.add("hidden");
     revertBtn.classList.remove("hidden");
     workspace.options.readOnly = true;
@@ -573,7 +595,7 @@ function applyProject(rec: ProjectRecord): void {
   } else {
     detached = false;
     detachToggle.checked = false;
-    codeEdit.classList.add("hidden");
+    codeEditWrap.classList.add("hidden");
     codeView.classList.remove("hidden");
     revertBtn.classList.add("hidden");
     workspace.options.readOnly = false;
