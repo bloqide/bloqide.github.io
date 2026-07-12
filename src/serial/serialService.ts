@@ -206,9 +206,33 @@ export class SerialService {
     }
   }
 
+  /**
+   * Soft-reboot to reinitialize peripherals before a fresh Run, so leftover
+   * hardware state from a previous Run (e.g. a pin left as a plain GPIO output
+   * blocking a later PWM) can't linger. Best effort: if the handshake times out,
+   * fall through — execRaw's own Ctrl-C + raw REPL still runs the program.
+   */
+  private async softReset(): Promise<void> {
+    try {
+      await this.write(CTRL_C + CTRL_C); // stop whatever's running
+      this.rx = "";
+      await this.write(CTRL_D); // soft reboot -> peripherals reinitialized
+      await this.waitFor("soft reboot", 3000);
+      // A saved main.py auto-runs after reboot; interrupt it to reach a clean
+      // prompt (Ctrl-C also breaks an initial sleep).
+      await delay(200);
+      this.rx = "";
+      await this.write(CTRL_C + CTRL_C);
+      await this.waitFor(">>>", 3000);
+    } catch {
+      /* handshake timed out — proceed anyway */
+    }
+  }
+
   /** Run the program now (RAM only; flash main.py untouched). */
   async run(code: string): Promise<void> {
-    this.cb.onData("\r\n[run] uploading & executing…\r\n");
+    this.cb.onData("\r\n[run] resetting + uploading…\r\n");
+    await this.softReset();
     await this.execRaw(code);
   }
 
