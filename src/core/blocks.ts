@@ -43,6 +43,14 @@ function resolveTokens(json: Record<string, unknown>, board: Board): Record<stri
   return clone;
 }
 
+/** Full FontAwesome class for a glyph, defaulting to the solid style unless a
+ *  style (fa-solid/brands/regular/…) is already named. */
+export function faClass(faIcon: string): string {
+  return /\bfa-(solid|brands|regular|light|thin|duotone)\b/.test(faIcon)
+    ? faIcon
+    : `fa-solid ${faIcon}`;
+}
+
 let registeredForBoard: string | null = null;
 
 /** (Re)register all block definitions for the given board. */
@@ -70,8 +78,10 @@ export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinit
       name: plugin.toolbox.category,
       colour: String(plugin.toolbox.colour),
       // Replace Blockly's default icon span classes with a FontAwesome glyph.
+      // Default to the solid style unless the faIcon names one (e.g. brand icons
+      // like fa-brands fa-bluetooth-b, which aren't in the solid set).
       cssConfig: plugin.toolbox.faIcon
-        ? { icon: `cat-icon fa-solid ${plugin.toolbox.faIcon}` }
+        ? { icon: `cat-icon ${faClass(plugin.toolbox.faIcon)}` }
         : undefined,
     };
     if (plugin.toolbox.custom) {

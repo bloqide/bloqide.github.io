@@ -1,5 +1,16 @@
 import { allBoards } from "../core/registry";
+import { faClass } from "../core/blocks";
 import type { Board, Capability } from "../core/types";
+
+// Board photos, resolved to bundled URLs and keyed by filename (icon.imageRef).
+const boardImages = import.meta.glob<string>("../../boards/images/*.{jpg,jpeg,png,svg,webp}", {
+  query: "?url",
+  import: "default",
+  eager: true,
+});
+const imageByName = new Map<string, string>(
+  Object.entries(boardImages).map(([path, url]) => [path.split("/").pop()!, url])
+);
 
 // The board picker dialog: a grid of board cards (icon, name, MCU, feature
 // chips). Mirrors the project library dialog. Selecting a board is delegated to
@@ -46,11 +57,24 @@ export function initBoardPicker(handlers: BoardPickerHandlers): { open: () => vo
     const feats = b.capabilities
       .map((c) => `<span class="feat">${FEATURE_LABEL[c] ?? c}</span>`)
       .join("");
+    const glyph = faClass(b.icon?.faIcon ?? "fa-microchip");
+    const iconTile = `<div class="board-icon" style="background:${accent}"><i class="${glyph}"></i></div>`;
+    const imgUrl = b.icon?.imageRef ? imageByName.get(b.icon.imageRef) : undefined;
+    const visual = imgUrl
+      ? `<img class="board-img" src="${imgUrl}" alt="">`
+      : iconTile;
     el.innerHTML = `
-      <div class="board-icon" style="background:${accent}"><i class="fa-solid fa-microchip"></i></div>
+      <div class="board-visual">${visual}</div>
       <div class="board-name"></div>
       <div class="board-mcu"></div>
       <div class="board-feats">${feats}</div>`;
+    // If the photo fails to load, fall back to the icon tile.
+    const img = el.querySelector<HTMLImageElement>(".board-img");
+    if (img) {
+      img.addEventListener("error", () => {
+        img.closest(".board-visual")!.innerHTML = iconTile;
+      });
+    }
     el.querySelector(".board-name")!.textContent = b.name + (isCurrent ? " ✓" : "");
     el.querySelector(".board-mcu")!.textContent = `${b.meta.vendor} · ${b.meta.mcu}`;
     el.addEventListener("click", () => {

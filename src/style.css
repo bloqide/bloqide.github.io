@@ -252,10 +252,18 @@ button.danger { border-color: #f38ba8; color: #f38ba8; }
 }
 .board-card:hover { border-color: var(--accent); background: #313244; }
 .board-card.current { outline: 2px solid var(--accent); }
+.board-visual {
+  width: 100%; height: 84px;
+  display: flex; align-items: center; justify-content: center;
+}
 .board-icon {
   width: 56px; height: 56px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 28px; color: #fff;
+}
+.board-img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 8px; background: #0004;
 }
 .board-name { font-weight: 600; }
 .board-mcu { font-size: 11px; color: var(--muted); }

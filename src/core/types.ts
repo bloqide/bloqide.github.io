@@ -47,7 +47,7 @@ export interface Board {
   id: string;
   name: string;
   meta: { vendor: string; mcu: string };
-  icon?: { preset?: string; imageRef?: string };
+  icon?: { preset?: string; imageRef?: string; faIcon?: string };
 
   connection: {
     baud: number;
