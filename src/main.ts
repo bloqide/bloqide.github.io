@@ -583,6 +583,12 @@ const LAST_OPEN_KEY = "bloq:lastOpen";
 let current: ProjectRecord = newRecord("Untitled", board.id);
 let loading = false; // suppress autosave while applying a loaded project
 
+// Per-tab undo/redo history, kept in memory so it survives tab switches (the
+// one workspace is cleared + reloaded on switch). Not persisted: events aren't
+// serialized to the store, so history is per session and reset on reload.
+type UndoHistory = { undo: Blockly.Events.Abstract[]; redo: Blockly.Events.Abstract[] };
+const undoHistory = new Map<string, UndoHistory>();
+
 const nameEl = document.getElementById("project-name")!;
 
 // Ids that have been committed to the store. A brand-new project stays an
@@ -615,21 +621,45 @@ function autosave(): void {
 }
 
 function applyProject(rec: ProjectRecord): void {
+  // Stash the outgoing tab's undo/redo history before the workspace is swapped,
+  // so switching back to it restores that history instead of a blank slate.
+  if (current && current.id !== rec.id) {
+    undoHistory.set(current.id, {
+      undo: workspace.getUndoStack().slice(),
+      redo: workspace.getRedoStack().slice(),
+    });
+  }
   loading = true;
   current = rec;
   setName(rec.name);
   if (rec.board !== board.id) useBoard(rec.board);
+  // Swap the workspace content without recording it as undoable churn. The
+  // clear()/load() delete+create events fire asynchronously, so clearing the
+  // stack afterwards wouldn't catch them — instead suppress recording (captured
+  // when each event is constructed) so they never enter any tab's history.
+  const prevRecordUndo = Blockly.Events.getRecordUndo();
+  Blockly.Events.setRecordUndo(false);
   workspace.clear();
   try {
     Blockly.serialization.workspaces.load(rec.blocks as object, workspace);
   } catch {
-    // Corrupt/legacy block data: Blockly can bail mid-load with undo recording
-    // still suspended and an event group left open. Reset both so editing (and
-    // undo) keep working instead of silently going dead.
-    Blockly.Events.setRecordUndo(true);
+    // Corrupt/legacy block data: Blockly can bail mid-load with an event group
+    // left open — reset it (recordUndo is restored just below regardless).
     Blockly.Events.setGroup(false);
   }
-  workspace.clearUndo(); // don't let undo cross project boundaries
+  Blockly.Events.setRecordUndo(prevRecordUndo);
+  // Replace the live undo/redo stacks with this tab's saved history (empty for a
+  // fresh tab). Undo events key off block ids the reload preserves, on the same
+  // reused workspace, so they replay correctly across a tab switch.
+  const undoStack = workspace.getUndoStack();
+  const redoStack = workspace.getRedoStack();
+  undoStack.length = 0;
+  redoStack.length = 0;
+  const hist = undoHistory.get(rec.id);
+  if (hist) {
+    undoStack.push(...hist.undo);
+    redoStack.push(...hist.redo);
+  }
   // Restore this tab's own zoom + scroll.
   if (rec.view) {
     workspace.setScale(rec.view.scale);
@@ -658,6 +688,7 @@ function applyProject(rec: ProjectRecord): void {
     regenerate();
   }
   activateConnection(); // rebind terminal + toolbar to this project's connection
+  syncUndoRedo(); // reflect the restored history (no change event fires here)
   localStorage.setItem(LAST_OPEN_KEY, current.id);
 }
 
@@ -745,6 +776,9 @@ function closeTab(id: string): void {
     renderTabs();
     persistTabs();
   }
+  // After any switch has run (which re-stashes the outgoing tab), drop the
+  // closed tab's undo history for good.
+  undoHistory.delete(id);
 }
 
 const library = initLibrary({
