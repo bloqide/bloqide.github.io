@@ -62,11 +62,13 @@ class BloqRenderer extends Blockly.zelos.Renderer {
 Blockly.blockRendering.register("bloq-zelos", BloqRenderer);
 
 // ---- Blockly workspace ----
+// The flyout is pinned to this scale too (see below), so it's shared.
+const WORKSPACE_START_SCALE = 0.9;
 const workspace = Blockly.inject("blockly", {
   toolbox: buildToolbox(board),
   renderer: "bloq-zelos",
   grid: { spacing: 24, length: 3, colour: "#313244", snap: true },
-  zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 3, minScale: 0.3 },
+  zoom: { controls: true, wheel: true, startScale: WORKSPACE_START_SCALE, maxScale: 3, minScale: 0.3 },
   move: { scrollbars: true, drag: true, wheel: true },
   trashcan: true,
   plugins: { metricsManager: OverlayMetricsManager },
@@ -75,6 +77,15 @@ const workspace = Blockly.inject("blockly", {
 // Keep the block flyout pinned open (don't auto-close after dragging a block).
 const flyout = workspace.getFlyout();
 if (flyout) (flyout as unknown as { autoClose: boolean }).autoClose = false;
+
+// Pin the flyout at a fixed scale. By default Blockly scales the flyout to the
+// workspace zoom (getFlyoutScale -> targetWorkspace.scale), so zooming in makes
+// the flyout balloon and eat the canvas. Lock it to the workspace's startScale
+// so the flyout width stays constant no matter the zoom level.
+if (flyout) {
+  (flyout as unknown as { getFlyoutScale: () => number }).getFlyoutScale = () =>
+    WORKSPACE_START_SCALE;
+}
 
 // Drag-out UX: the flyout is pinned open, so it covers the drop area. While
 // dragging a block out of it, hide it once the pointer crosses its right edge
