@@ -158,9 +158,17 @@ if (Blockly.Variables?.flyoutCategory) {
   workspace.registerToolboxCategoryCallback("VARIABLE", Blockly.Variables.flyoutCategory);
 }
 
-// Undo / redo.
-document.getElementById("btn-undo")!.addEventListener("click", () => workspace.undo(false));
-document.getElementById("btn-redo")!.addEventListener("click", () => workspace.undo(true));
+// Undo / redo. Grey out each button when its stack is empty.
+const btnUndo = document.getElementById("btn-undo") as HTMLButtonElement;
+const btnRedo = document.getElementById("btn-redo") as HTMLButtonElement;
+btnUndo.addEventListener("click", () => workspace.undo(false));
+btnRedo.addEventListener("click", () => workspace.undo(true));
+function syncUndoRedo(): void {
+  btnUndo.disabled = workspace.getUndoStack().length === 0;
+  btnRedo.disabled = workspace.getRedoStack().length === 0;
+}
+workspace.addChangeListener(syncUndoRedo);
+syncUndoRedo();
 
 function useBoard(id: string): void {
   const next = getBoard(id);
