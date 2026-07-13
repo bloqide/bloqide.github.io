@@ -13,7 +13,12 @@ export function newRecord(name: string, board: string): ProjectRecord {
     id: newId(),
     name,
     board,
-    blocks: { languageVersion: 0, blocks: [] },
+    // An empty workspace serialization is `{}` — the shape
+    // Blockly.serialization.workspaces.save() emits and load() expects (keyed by
+    // serializer name). A nested `{ languageVersion, blocks: [] }` here is the
+    // INNER block-section shape and makes load() throw, which silently wedges
+    // undo recording until reload.
+    blocks: {},
     detached: false,
     updatedAt: Date.now(),
   };

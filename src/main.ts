@@ -146,7 +146,17 @@ if (flyout) {
   // Defer restore past Blockly's own drop handling (which runs during this same
   // pointerup): restoring the flyout's delete zone before the drop is decided is
   // exactly what was deleting the block.
-  const deferRestore = () => setTimeout(restore, 0);
+  const deferRestore = () =>
+    setTimeout(() => {
+      // Blockly's flyout createBlock opens an event group and relies on the
+      // block drag to close it, but the flyout path can leave it open — which
+      // merges the next edit into the created block's undo step (undo then wipes
+      // the block instead of reverting the last move). The gesture is over here
+      // (nothing is dragging), so close any dangling group: each edit becomes
+      // its own undo entry again.
+      if (!workspace.isDragging()) Blockly.Events.setGroup(false);
+      restore();
+    }, 0);
   document.addEventListener("pointerup", deferRestore, true);
   document.addEventListener("pointercancel", deferRestore, true);
 }
@@ -318,6 +328,30 @@ workspace.addChangeListener((e: Blockly.Events.Abstract) => {
   }
   if (e.type === Blockly.Events.BLOCK_MOVE || e.type === Blockly.Events.BLOCK_CREATE) {
     raiseFloatingValueBlocks();
+  }
+});
+
+// Fold the post-drop grid snap into the drag's undo step. Blockly snaps a
+// free-floating block to the grid asynchronously (on the next frame, after the
+// drag's event group has already closed), so the snap lands as a second,
+// group-less BLOCK_MOVE — making undo take two steps per move. Re-tag that snap
+// move with the just-ended drag's group so the move and its snap collapse into a
+// single undo entry. (Mutating the event also updates the copy on the undo
+// stack, since it's the same object.)
+let pendingSnap: { group: string; blockId: string } | null = null;
+workspace.addChangeListener((e: Blockly.Events.Abstract) => {
+  if (e.type === Blockly.Events.BLOCK_DRAG) {
+    const drag = e as Blockly.Events.BlockDrag;
+    pendingSnap =
+      drag.isStart || !e.group || !drag.blockId ? null : { group: e.group, blockId: drag.blockId };
+  } else if (
+    pendingSnap &&
+    e.type === Blockly.Events.BLOCK_MOVE &&
+    !e.group &&
+    (e as Blockly.Events.BlockMove).blockId === pendingSnap.blockId
+  ) {
+    e.group = pendingSnap.group;
+    pendingSnap = null;
   }
 });
 
@@ -589,7 +623,11 @@ function applyProject(rec: ProjectRecord): void {
   try {
     Blockly.serialization.workspaces.load(rec.blocks as object, workspace);
   } catch {
-    /* ignore corrupt block data */
+    // Corrupt/legacy block data: Blockly can bail mid-load with undo recording
+    // still suspended and an event group left open. Reset both so editing (and
+    // undo) keep working instead of silently going dead.
+    Blockly.Events.setRecordUndo(true);
+    Blockly.Events.setGroup(false);
   }
   workspace.clearUndo(); // don't let undo cross project boundaries
   // Restore this tab's own zoom + scroll.
