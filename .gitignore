@@ -3,3 +3,7 @@ dist/
 dev-dist/
 *.local
 .DS_Store
+
+# SSH keys — never commit
+id_ed25519*
+id_rsa*
