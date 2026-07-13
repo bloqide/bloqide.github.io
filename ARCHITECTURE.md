@@ -305,16 +305,19 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   (`scripts/codegen.test.ts` — 28 checks pass.)
 - Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
 - Blockly workspace (custom zelos renderer), toolbox from plugins with a
-  drag-out-hides-flyout tweak, live codegen, Split view (resizable) with
-  source-map highlighting, detach/revert.
+  drag-out-hides-flyout tweak and a fixed-scale flyout (doesn't grow with zoom),
+  live codegen, Split view (resizable) with source-map highlighting,
+  detach/revert. Undo/redo is grouping-correct (grid snap folded into the drag)
+  and the toolbar buttons disable when a stack is empty.
 - Serial (Web Serial + raw REPL: run / save-to-board / stop / delta lib sync) +
   xterm terminal.
-- PWA offline precache.
+- PWA offline precache; installable with a custom app icon (start-block mark,
+  maskable + Apple variants).
 - **Project library** (IndexedDB): open / duplicate / delete, per-project
   autosave (empty drafts not persisted until edited), reopen-last-on-boot,
   rename, `.bloq` export/import.
-- **Multi-project tabs**: open/switch/close, per-tab viewport, copy/paste across
-  tabs.
+- **Multi-project tabs**: open/switch/close, per-tab viewport, per-tab undo/redo
+  history (in-memory, per session), copy/paste across tabs.
 - **Multi-device**: shared `ConnectionPool`, highlighted device drives Run/Save,
   per-project session link, multi-pane terminal (rename / reconnect / close).
 - **Board picker** (grid of cards, photo/icon + feature chips) and **Examples**
