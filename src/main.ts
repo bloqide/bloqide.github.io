@@ -414,8 +414,17 @@ function revert(): void {
 const blocklyPane = document.getElementById("blockly")!;
 const codePane = document.getElementById("code-pane")!;
 const splitResizer = document.getElementById("split-resizer")!;
+// Last visible workspace scroll/zoom, so hiding the canvas (full Code view)
+// doesn't lose the user's position.
+let lastWsView: { scale: number; x: number; y: number } | null = null;
 document.querySelectorAll<HTMLButtonElement>(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
+    // Capture the current view while the canvas is still on screen. Hiding it
+    // zeroes Blockly's metrics, so svgResize would otherwise snap the workspace
+    // back to the origin (START block at top-left) when it reappears.
+    if (!blocklyPane.classList.contains("hidden")) {
+      lastWsView = { scale: workspace.getScale(), x: workspace.scrollX, y: workspace.scrollY };
+    }
     document.querySelectorAll(".view-btn").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     const view = btn.dataset.view;
@@ -425,6 +434,11 @@ document.querySelectorAll<HTMLButtonElement>(".view-btn").forEach((btn) => {
     blocklyPane.classList.toggle("split", view === "split");
     splitResizer.classList.toggle("hidden", view !== "split");
     Blockly.svgResize(workspace);
+    // Restore the saved view once the canvas is showing again.
+    if (!blocklyPane.classList.contains("hidden") && lastWsView) {
+      workspace.setScale(lastWsView.scale);
+      workspace.scroll(lastWsView.x, lastWsView.y);
+    }
   });
 });
 
