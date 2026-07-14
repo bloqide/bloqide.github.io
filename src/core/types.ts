@@ -18,6 +18,7 @@ export type Capability =
   | "uart"
   | "wifi"
   | "ble"
+  | "espnow"
   | "neopixel";
 
 // ------------------------------- Board -------------------------------------

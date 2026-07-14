@@ -1,0 +1,442 @@
+{
+  "formatVersion": 1,
+  "name": "espnow-rx",
+  "board": "esp32-c3",
+  "blocks": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "when_started",
+          "id": "#j3iCa}fI:AGq((1m^nZ",
+          "x": 948,
+          "y": 420,
+          "next": {
+            "block": {
+              "type": "comment",
+              "id": ":[H*q(:$%DL7S)!rQ%tq",
+              "fields": {
+                "TEXT": {
+                  "text": "No \"add peer\" needed to receive messages.\nUse the value printed out in the terminal after \"My MAC:\" in the sender program to send messages to this board.",
+                  "width": 637.9200439453125,
+                  "height": 104
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "print_terminal",
+                  "id": "y8]fiH$-~Gsko,JgyX7j",
+                  "inputs": {
+                    "MSG": {
+                      "shadow": {
+                        "type": "text_literal",
+                        "id": "pMoDl}~PPR1bANytn?pp",
+                        "fields": {
+                          "TEXT": "Hello!"
+                        }
+                      },
+                      "block": {
+                        "type": "text_join2",
+                        "id": "_[PVC9e;}cIIyMAr|1kw",
+                        "inputs": {
+                          "A": {
+                            "shadow": {
+                              "type": "text_literal",
+                              "id": "okq9zFX6RU+_zfSK1Zh9",
+                              "fields": {
+                                "TEXT": "My MAC: "
+                              }
+                            }
+                          },
+                          "B": {
+                            "shadow": {
+                              "type": "math_number",
+                              "id": "2o}t=U+ZL~n)%0$7Wz*0",
+                              "fields": {
+                                "NUM": 0
+                              }
+                            },
+                            "block": {
+                              "type": "espnow_my_mac",
+                              "id": "6m]VTbsqJ!]YM8rc7V%_"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "repeat_times",
+                      "id": "[[?vuKC29X$=)%904yW{",
+                      "fields": {
+                        "N": 10
+                      },
+                      "inputs": {
+                        "DO": {
+                          "block": {
+                            "type": "gpio_toggle_led",
+                            "id": "04vynB[t$KLuT][2zH+8",
+                            "next": {
+                              "block": {
+                                "type": "wait_ms",
+                                "id": "Mkf%`iB0Jfob+1Xt,=o6",
+                                "fields": {
+                                  "MS": 100
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "forever",
+                          "id": "oUNU~^I,nu}?|O3WVes~",
+                          "inputs": {
+                            "DO": {
+                              "block": {
+                                "type": "variables_set",
+                                "id": "G|Pc!:E_R!9-@JqbBEpo",
+                                "fields": {
+                                  "VAR": {
+                                    "id": "ftQIs,*Brt_|T;AywS[N"
+                                  }
+                                },
+                                "inputs": {
+                                  "VALUE": {
+                                    "block": {
+                                      "type": "espnow_receive",
+                                      "id": "*tPR4{v2OI^+Bf%TH(3i",
+                                      "inputs": {
+                                        "TIMEOUT": {
+                                          "shadow": {
+                                            "type": "math_number",
+                                            "id": "h+G%S3W;J|6X8e^$1fQ6",
+                                            "fields": {
+                                              "NUM": 1000
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "next": {
+                                  "block": {
+                                    "type": "if_else",
+                                    "id": "Ml(e{XqcH1$5$exd2`Jk",
+                                    "extraState": {
+                                      "elif": 1
+                                    },
+                                    "inputs": {
+                                      "COND": {
+                                        "block": {
+                                          "type": "logic_compare",
+                                          "id": "LW/}oX:mB:ztoL(QQ[5*",
+                                          "fields": {
+                                            "OP": "=="
+                                          },
+                                          "inputs": {
+                                            "A": {
+                                              "shadow": {
+                                                "type": "math_number",
+                                                "id": "isFAI?8-/([Jqg`=p*_T",
+                                                "fields": {
+                                                  "NUM": 0
+                                                }
+                                              },
+                                              "block": {
+                                                "type": "variables_get",
+                                                "id": "9o2[L^IcDs=nXVp_[i]!",
+                                                "fields": {
+                                                  "VAR": {
+                                                    "id": "ftQIs,*Brt_|T;AywS[N"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "B": {
+                                              "shadow": {
+                                                "type": "math_number",
+                                                "id": "!lB9*:8KqT.Ko#KPr|lB",
+                                                "fields": {
+                                                  "NUM": 0
+                                                }
+                                              },
+                                              "block": {
+                                                "type": "text_literal",
+                                                "id": "|Qh{:ucUccuP3[q2tqAa",
+                                                "fields": {
+                                                  "TEXT": "HELLO"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "DO": {
+                                        "block": {
+                                          "type": "print_terminal",
+                                          "id": "bjS;^LQFGzxi{L}uR(lX",
+                                          "inputs": {
+                                            "MSG": {
+                                              "block": {
+                                                "type": "text_join2",
+                                                "id": "WLTi].2*FK|mGcd^n^~?",
+                                                "inputs": {
+                                                  "A": {
+                                                    "shadow": {
+                                                      "type": "text_literal",
+                                                      "id": "(m*4is)!G0Dl^i+UMdld",
+                                                      "fields": {
+                                                        "TEXT": "value: "
+                                                      }
+                                                    },
+                                                    "block": {
+                                                      "type": "text_literal",
+                                                      "id": "R{%k6M2Sn,m%)P3khF3s",
+                                                      "fields": {
+                                                        "TEXT": "Message from: "
+                                                      }
+                                                    }
+                                                  },
+                                                  "B": {
+                                                    "shadow": {
+                                                      "type": "math_number",
+                                                      "id": "r=^eypE.4Ek*Y(,Q#y[9",
+                                                      "fields": {
+                                                        "NUM": 0
+                                                      }
+                                                    },
+                                                    "block": {
+                                                      "type": "espnow_sender",
+                                                      "id": "S##4gow{|)W/cCA5T*%="
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "print_terminal",
+                                              "id": "dKfnmPaD/V7wzg|QC.yZ",
+                                              "inputs": {
+                                                "MSG": {
+                                                  "shadow": {
+                                                    "type": "text_literal",
+                                                    "id": "jVykFo=]R=(;Q:ZB6`*:",
+                                                    "fields": {
+                                                      "TEXT": "Hello!"
+                                                    }
+                                                  },
+                                                  "block": {
+                                                    "type": "variables_get",
+                                                    "id": "/%GCpVo2ExClKx{0re2Z",
+                                                    "fields": {
+                                                      "VAR": {
+                                                        "id": "ftQIs,*Brt_|T;AywS[N"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "next": {
+                                                "block": {
+                                                  "type": "repeat_times",
+                                                  "id": "HJ%BZ{LAThM$,NU,l6o#",
+                                                  "fields": {
+                                                    "N": 2
+                                                  },
+                                                  "inputs": {
+                                                    "DO": {
+                                                      "block": {
+                                                        "type": "gpio_toggle_led",
+                                                        "id": "AI~5T%Od(|f,O80a(K2~",
+                                                        "next": {
+                                                          "block": {
+                                                            "type": "wait_ms",
+                                                            "id": "~W+9,L3Q6QXHOB,zNJbi",
+                                                            "fields": {
+                                                              "MS": 100
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "IF1": {
+                                        "block": {
+                                          "type": "logic_compare",
+                                          "id": "78m.RQjITT][[C3#K,;z",
+                                          "fields": {
+                                            "OP": "=="
+                                          },
+                                          "inputs": {
+                                            "A": {
+                                              "shadow": {
+                                                "type": "math_number",
+                                                "id": "isFAI?8-/([Jqg`=p*_T",
+                                                "fields": {
+                                                  "NUM": 0
+                                                }
+                                              },
+                                              "block": {
+                                                "type": "variables_get",
+                                                "id": "`s@bmSo#:`HI`/8CZ,h1",
+                                                "fields": {
+                                                  "VAR": {
+                                                    "id": "ftQIs,*Brt_|T;AywS[N"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "B": {
+                                              "shadow": {
+                                                "type": "math_number",
+                                                "id": "!lB9*:8KqT.Ko#KPr|lB",
+                                                "fields": {
+                                                  "NUM": 0
+                                                }
+                                              },
+                                              "block": {
+                                                "type": "text_literal",
+                                                "id": "Q{Tbh6*L~#6H4WD[yaT(",
+                                                "fields": {
+                                                  "TEXT": "WORLD"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "THEN1": {
+                                        "block": {
+                                          "type": "print_terminal",
+                                          "id": "U8Hpy/YP5NmUwgY7RO(%",
+                                          "inputs": {
+                                            "MSG": {
+                                              "block": {
+                                                "type": "text_join2",
+                                                "id": "}zP{6;Y7[o^;h_vX:CwL",
+                                                "inputs": {
+                                                  "A": {
+                                                    "shadow": {
+                                                      "type": "text_literal",
+                                                      "id": "(m*4is)!G0Dl^i+UMdld",
+                                                      "fields": {
+                                                        "TEXT": "value: "
+                                                      }
+                                                    },
+                                                    "block": {
+                                                      "type": "text_literal",
+                                                      "id": "/b5y{aud8kVv*gd*2xSJ",
+                                                      "fields": {
+                                                        "TEXT": "Message from: "
+                                                      }
+                                                    }
+                                                  },
+                                                  "B": {
+                                                    "shadow": {
+                                                      "type": "math_number",
+                                                      "id": "r=^eypE.4Ek*Y(,Q#y[9",
+                                                      "fields": {
+                                                        "NUM": 0
+                                                      }
+                                                    },
+                                                    "block": {
+                                                      "type": "espnow_sender",
+                                                      "id": "$on2VN4Rx_QZ2!vUGVP["
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "print_terminal",
+                                              "id": "m8iai9i)MSabKwe0+d$B",
+                                              "inputs": {
+                                                "MSG": {
+                                                  "shadow": {
+                                                    "type": "text_literal",
+                                                    "id": "jVykFo=]R=(;Q:ZB6`*:",
+                                                    "fields": {
+                                                      "TEXT": "Hello!"
+                                                    }
+                                                  },
+                                                  "block": {
+                                                    "type": "variables_get",
+                                                    "id": "WCbds*bUhkuln=B42shC",
+                                                    "fields": {
+                                                      "VAR": {
+                                                        "id": "ftQIs,*Brt_|T;AywS[N"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "next": {
+                                                "block": {
+                                                  "type": "repeat_times",
+                                                  "id": "{S-3FlK%kyV-f_Of/8T9",
+                                                  "fields": {
+                                                    "N": 4
+                                                  },
+                                                  "inputs": {
+                                                    "DO": {
+                                                      "block": {
+                                                        "type": "gpio_toggle_led",
+                                                        "id": "Lc_P-j]d#_D0TD3CSHw7",
+                                                        "next": {
+                                                          "block": {
+                                                            "type": "wait_ms",
+                                                            "id": "TZv|4GFCcLppqEIAW6Fl",
+                                                            "fields": {
+                                                              "MS": 100
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "name": "message",
+        "id": "ftQIs,*Brt_|T;AywS[N"
+      }
+    ]
+  },
+  "detached": false
+}

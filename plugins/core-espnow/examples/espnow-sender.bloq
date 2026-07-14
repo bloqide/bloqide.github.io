@@ -1,0 +1,221 @@
+{
+  "formatVersion": 1,
+  "name": "espnow-tx",
+  "board": "espbot2-ble",
+  "blocks": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "when_started",
+          "id": "D=hs!8%ovyGqM/Wq(fSP",
+          "x": 732,
+          "y": 348,
+          "next": {
+            "block": {
+              "type": "comment",
+              "id": "_FIN/~QhS`wJk!.gM9ld",
+              "fields": {
+                "TEXT": {
+                  "text": "Add all peers to want to send messages to (max 16).\nPrint the MAC on the receiving board to get its address.\nBroadcasting sends the message to anyone listening.",
+                  "width": 661.9200439453125,
+                  "height": 104
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "espnow_add_broadcast_peer",
+                  "id": "WV~~/ttW,#xoObKmi@{p",
+                  "next": {
+                    "block": {
+                      "type": "espnow_add_peer",
+                      "id": "W1.lS{KVMIhZBw~6L|V:",
+                      "inputs": {
+                        "MAC": {
+                          "shadow": {
+                            "type": "text_literal",
+                            "id": "Wij!TJm_o@fCL,wZqBA?",
+                            "fields": {
+                              "TEXT": "64:E8:33:88:B6:80"
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "forever",
+                          "id": "ynv9~:0t,CZcW~ziBMeC",
+                          "inputs": {
+                            "DO": {
+                              "block": {
+                                "type": "if_else",
+                                "id": "#ZBr0e_)P,rKb=z(hz3d",
+                                "extraState": {
+                                  "elif": 1
+                                },
+                                "inputs": {
+                                  "COND": {
+                                    "block": {
+                                      "type": "gpio_button",
+                                      "id": "*;lqAEh~V!Hnh]YBfEKo",
+                                      "fields": {
+                                        "PIN": "0"
+                                      }
+                                    }
+                                  },
+                                  "DO": {
+                                    "block": {
+                                      "type": "espnow_broadcast",
+                                      "id": "Uo+/:+NB.E:cZV;-#,xL",
+                                      "inputs": {
+                                        "MSG": {
+                                          "shadow": {
+                                            "type": "text_literal",
+                                            "id": "mjy/1l`Rju3)wI}:xu{%",
+                                            "fields": {
+                                              "TEXT": "HELLO"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "espnow_send",
+                                          "id": "oME3ZPJ=S]@#FoH@0xvI",
+                                          "inputs": {
+                                            "MSG": {
+                                              "shadow": {
+                                                "type": "text_literal",
+                                                "id": "N/Z(@@1r|iwHpbt(MP:s",
+                                                "fields": {
+                                                  "TEXT": "HELLO"
+                                                }
+                                              }
+                                            },
+                                            "MAC": {
+                                              "shadow": {
+                                                "type": "text_literal",
+                                                "id": "RHk,9+{Goa,sY76C3N]#",
+                                                "fields": {
+                                                  "TEXT": "64:E8:33:88:B6:80"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "wait_seconds",
+                                              "id": "mup%DqIw=Pmxw3VDQ+}m",
+                                              "inputs": {
+                                                "SEC": {
+                                                  "shadow": {
+                                                    "type": "math_number",
+                                                    "id": "16kJ9OhrB((YR.K1@CBv",
+                                                    "fields": {
+                                                      "NUM": 0.5
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "IF1": {
+                                    "block": {
+                                      "type": "gpio_button",
+                                      "id": "Xx|qT/36:uBd;+[f,j!h",
+                                      "fields": {
+                                        "PIN": "1"
+                                      }
+                                    }
+                                  },
+                                  "THEN1": {
+                                    "block": {
+                                      "type": "espnow_broadcast",
+                                      "id": "QwjS9G]Bp!4msD*:)+Dd",
+                                      "inputs": {
+                                        "MSG": {
+                                          "shadow": {
+                                            "type": "text_literal",
+                                            "id": "qmV9wnx3j*WIvE/fumb5",
+                                            "fields": {
+                                              "TEXT": "WORLD"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "espnow_send",
+                                          "id": "qUi#@)g0ckHmx}~o//p{",
+                                          "inputs": {
+                                            "MSG": {
+                                              "shadow": {
+                                                "type": "text_literal",
+                                                "id": "XIi4fJruSqLA!%Qri#*H",
+                                                "fields": {
+                                                  "TEXT": "WORLD"
+                                                }
+                                              }
+                                            },
+                                            "MAC": {
+                                              "shadow": {
+                                                "type": "text_literal",
+                                                "id": "F76r9zq7BK@8ain(_m@B",
+                                                "fields": {
+                                                  "TEXT": "64:E8:33:88:B6:80"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "wait_seconds",
+                                              "id": "lXEc6,}cTpn#@cLp,/,m",
+                                              "inputs": {
+                                                "SEC": {
+                                                  "shadow": {
+                                                    "type": "math_number",
+                                                    "id": "#=!rA#7b~B?L0LnosOF6",
+                                                    "fields": {
+                                                      "NUM": 0.5
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "ELSE": {
+                                    "block": {
+                                      "type": "wait_ms",
+                                      "id": "A0|n{TJs:t3*NPtX~VvI",
+                                      "fields": {
+                                        "MS": 100
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "detached": false
+}

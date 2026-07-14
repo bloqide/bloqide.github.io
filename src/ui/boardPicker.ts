@@ -38,6 +38,7 @@ const FEATURE_LABEL: Record<Capability, string> = {
   uart: "UART",
   wifi: "Wi-Fi",
   ble: "BLE",
+  espnow: "ESP-NOW",
   neopixel: "NeoPixel",
 };
 
