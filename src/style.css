@@ -388,11 +388,12 @@ button.danger:hover { background: #f38ba8; color: #11111b; }
   border-radius: 6px;
   outline: none;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
+  font-size: 18px;
   line-height: 1.4;
   color: #1e1e2e;
   background: rgba(255, 255, 255, 0.92);
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 /* Custom bottom-right resize grip for the in-block text area. */

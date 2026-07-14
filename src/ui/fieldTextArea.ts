@@ -7,7 +7,7 @@ import * as Blockly from "blockly";
 // are stored with the text so the size persists with the project.
 
 const DEFAULT_W = 240;
-const DEFAULT_H = 72;
+const DEFAULT_H = 96; // 4 grid units (24px) tall — fits ~4 lines at 18px
 const MIN_W = 60;
 const MIN_H = 28;
 const PAD = 3; // textarea inset within the field box
