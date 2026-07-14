@@ -274,7 +274,23 @@ function renderCode(result: GenResult): void {
     }
     div.innerHTML = `<span class="ln">${lineNo}</span><span class="src"></span>`;
     div.querySelector(".src")!.innerHTML = text ? highlightPython(text) : " ";
-    div.addEventListener("click", () => blockId && selectBlock(blockId));
+    div.addEventListener("click", () => {
+      // Drive the code-side highlight synchronously rather than waiting on
+      // Blockly's async SELECTED event — that event doesn't fire when the
+      // clicked line maps to the already-selected block (or to no block at
+      // all), which left the previous line's highlight stuck on screen.
+      highlightLinesFor(blockId ?? null);
+      // Only touch block selection in Split view; in the full Code view the
+      // canvas is hidden, so selecting a block there is pointless.
+      if (blocklyPane.classList.contains("hidden")) return;
+      if (blockId) {
+        selectBlock(blockId);
+      } else {
+        // Unmapped line: clear the outline and the tracked selection together.
+        Blockly.common.getSelected()?.unselect();
+        Blockly.common.setSelected(null);
+      }
+    });
     codeView.appendChild(div);
   });
 }
@@ -282,10 +298,16 @@ function renderCode(result: GenResult): void {
 // ---- Bidirectional highlight (source map) ----
 function selectBlock(id: string): void {
   const block = workspace.getBlockById(id);
-  if (block) {
-    block.select();
-    workspace.centerOnBlock(id);
-  }
+  if (!block) return;
+  // In Blockly 11 `block.select()` ONLY adds the visual outline — it doesn't
+  // update the tracked selection or clear the previous block, so bare select()s
+  // leave stale outlines behind. Replicate a real click: drop the old outline,
+  // update the tracked selection (keeps getSelected() accurate + fires the
+  // event), then add the new outline.
+  Blockly.common.getSelected()?.unselect();
+  Blockly.common.setSelected(block);
+  block.select();
+  workspace.centerOnBlock(id);
 }
 
 function highlightLinesFor(blockId: string | null): void {
