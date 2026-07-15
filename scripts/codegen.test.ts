@@ -771,15 +771,30 @@ const fnGen = functions.generators as Record<string, any>;
   fnGen.procedures_return({ id: "r", getInputTargetBlock: () => null }, ctx);
   expect("fn return: empty -> bare return", lines.join("\n"), ["return"], ["return None"]);
 }
-// Real block: a return block inside a function body emits `return <value>`.
+// Real block: a return block inside a function body emits `return <value>`, and
+// its value slot shows/hides with the enclosing function's return-ness.
 {
   const w = ws();
   const def = w.newBlock("procedures_defreturn") as any;
   def.setFieldValue("compute", "NAME");
-  const ret = w.newBlock("procedures_return");
-  plug(ret, "VALUE", num(w, 5));
+  const ret = w.newBlock("procedures_return") as any;
   body(def, "STACK", ret);
+  ret.onchange({});
+  const slotShown = (b: any) => !!(b.getInput("VALUE") && b.getInput("VALUE").connection);
+  console.assert(slotShown(ret), "value slot shown inside a value-returning function");
+  plug(ret, "VALUE", num(w, 5));
   expect("real return block in function body", cg().generate(w).code, ["def compute():", "    return 5"]);
+}
+{
+  // Inside a no-value function, the value slot is removed (like if-return).
+  const w = ws();
+  const def = w.newBlock("procedures_defnoreturn") as any;
+  def.setFieldValue("blink", "NAME");
+  const ret = w.newBlock("procedures_return") as any;
+  body(def, "STACK", ret);
+  ret.onchange({});
+  console.assert(!(ret.getInput("VALUE") && ret.getInput("VALUE").connection), "value slot hidden in void function");
+  expect("return in void function -> bare return", cg().generate(w).code, ["def blink():", "    return"], ["return None"]);
 }
 
 // --- Test 31: the REAL custom definition block — inline +/- params, built-in

@@ -142,6 +142,16 @@ const RETURN_GUARD = "bloq_return_guard";
 const RETURN_FUNCTION_TYPES = ["procedures_defnoreturn", "procedures_defreturn"];
 if (!Blockly.Extensions.isRegistered(RETURN_GUARD)) {
   Blockly.Extensions.register(RETURN_GUARD, function (this: any) {
+    // Swap the value slot for a plain "return" (and back) — shown only inside a
+    // value-returning function, like the built-in if-return. Codegen keys off the
+    // plugged-in block, so this is cosmetic; the guard just disables the block
+    // outside any function (a bare return at module scope is a SyntaxError).
+    this.setReturnShape_ = function (this: any, hasValue: boolean): void {
+      const cur = this.getInput("VALUE");
+      if (cur && !!cur.connection === hasValue) return; // already the right shape
+      if (cur) this.removeInput("VALUE");
+      (hasValue ? this.appendValueInput("VALUE") : this.appendDummyInput("VALUE")).appendField("return");
+    };
     this.onchange = function (this: any) {
       if (this.workspace?.isDragging?.()) return;
       let legal = false;
@@ -153,6 +163,7 @@ if (!Blockly.Extensions.isRegistered(RETURN_GUARD)) {
         }
         block = block.getSurroundParent();
       } while (block);
+      if (legal) this.setReturnShape_(block.type === "procedures_defreturn");
       this.setWarningText(legal ? null : "Put 'return' inside a function.");
       if (!this.isInFlyout) this.setDisabledReason(!legal, "return_outside_function");
     };
