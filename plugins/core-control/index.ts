@@ -40,7 +40,7 @@ const IFELSE_MIXIN = {
     // Add missing else-if clauses, inserted just above the button row.
     for (let i = 1; i <= this.elifCount_; i++) {
       if (!this.getInput("IF" + i)) {
-        this.appendValueInput("IF" + i).appendField("else if");
+        this.appendValueInput("IF" + i).setCheck("Boolean").appendField("else if");
         this.appendStatementInput("THEN" + i);
         this.moveInputBefore("IF" + i, "CTRL");
         this.moveInputBefore("THEN" + i, "CTRL");
@@ -245,7 +245,7 @@ export const plugin: BloqPlugin = {
               ["until", "until"],
             ],
           },
-          { type: "input_value", name: "COND" },
+          { type: "input_value", name: "COND", check: "Boolean" },
           { type: "input_dummy" },
           { type: "input_statement", name: "DO" },
         ],
@@ -297,7 +297,7 @@ export const plugin: BloqPlugin = {
               ["until", "until"],
             ],
           },
-          { type: "input_value", name: "COND" },
+          { type: "input_value", name: "COND", check: "Boolean" },
           { type: "input_dummy" },
           { type: "input_statement", name: "DO" },
         ],
@@ -330,7 +330,7 @@ export const plugin: BloqPlugin = {
         type: "if_do",
         message0: "if %1 %2 %3",
         args0: [
-          { type: "input_value", name: "COND" },
+          { type: "input_value", name: "COND", check: "Boolean" },
           { type: "input_dummy" },
           { type: "input_statement", name: "DO" },
         ],
@@ -348,7 +348,7 @@ export const plugin: BloqPlugin = {
         type: "if_else",
         message0: "if %1 %2 %3",
         args0: [
-          { type: "input_value", name: "COND" },
+          { type: "input_value", name: "COND", check: "Boolean" },
           { type: "input_dummy" },
           { type: "input_statement", name: "DO" },
         ],
@@ -364,7 +364,7 @@ export const plugin: BloqPlugin = {
       json: {
         type: "wait_until",
         message0: "wait until %1",
-        args0: [{ type: "input_value", name: "COND" }],
+        args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
         inputsInline: true,
         previousStatement: null,
         nextStatement: null,

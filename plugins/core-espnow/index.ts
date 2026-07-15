@@ -147,7 +147,7 @@ export const plugin: BloqPlugin = {
       json: {
         type: "espnow_broadcast",
         message0: "ESP-NOW broadcast %1",
-        args0: [{ type: "input_value", name: "MSG", check: ["String", "Number", "Boolean"] }],
+        args0: [{ type: "input_value", name: "MSG" }],
         inputsInline: true,
         previousStatement: null,
         nextStatement: null,
@@ -163,7 +163,7 @@ export const plugin: BloqPlugin = {
         type: "espnow_send",
         message0: "ESP-NOW send %1 to %2",
         args0: [
-          { type: "input_value", name: "MSG", check: ["String", "Number", "Boolean"] },
+          { type: "input_value", name: "MSG" },
           { type: "input_value", name: "MAC", check: "String" },
         ],
         inputsInline: true,
