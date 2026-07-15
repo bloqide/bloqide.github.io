@@ -759,6 +759,28 @@ const fnGen = functions.generators as Record<string, any>;
   fnGen.procedures_ifreturn({ id: "r", getInput: () => null }, ctx);
   expect("fn if-return: no value -> bare return", lines.join("\n"), ["if done:", "    return"], ["return None"]);
 }
+{
+  // unconditional return with a value
+  const { ctx, lines } = fnCtx({ VALUE: "x + 1" });
+  fnGen.procedures_return({ id: "r", getInputTargetBlock: (n: string) => (n === "VALUE" ? {} : null) }, ctx);
+  expect("fn return: with value", lines.join("\n"), ["return x + 1"]);
+}
+{
+  // unconditional return, empty slot -> bare `return`, not `return None`
+  const { ctx, lines } = fnCtx({});
+  fnGen.procedures_return({ id: "r", getInputTargetBlock: () => null }, ctx);
+  expect("fn return: empty -> bare return", lines.join("\n"), ["return"], ["return None"]);
+}
+// Real block: a return block inside a function body emits `return <value>`.
+{
+  const w = ws();
+  const def = w.newBlock("procedures_defreturn") as any;
+  def.setFieldValue("compute", "NAME");
+  const ret = w.newBlock("procedures_return");
+  plug(ret, "VALUE", num(w, 5));
+  body(def, "STACK", ret);
+  expect("real return block in function body", cg().generate(w).code, ["def compute():", "    return 5"]);
+}
 
 // --- Test 31: the REAL custom definition block — inline +/- params, built-in
 // caller auto-sync (Blockly.Procedures.mutateCallers), serialization, codegen ---

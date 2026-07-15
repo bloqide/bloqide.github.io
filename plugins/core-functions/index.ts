@@ -133,6 +133,32 @@ if (!Blockly.Extensions.isRegistered(DEF_MUTATOR)) {
   Blockly.Extensions.registerMutator(DEF_MUTATOR, DEF_MIXIN, defHelper);
 }
 
+// ------------------------- unconditional return block ----------------------
+
+// Guards `procedures_return` the way Blockly guards its if-return block: it only
+// works inside a function definition, otherwise it's disabled with a warning (a
+// bare `return` at module/stack scope is a Python SyntaxError).
+const RETURN_GUARD = "bloq_return_guard";
+const RETURN_FUNCTION_TYPES = ["procedures_defnoreturn", "procedures_defreturn"];
+if (!Blockly.Extensions.isRegistered(RETURN_GUARD)) {
+  Blockly.Extensions.register(RETURN_GUARD, function (this: any) {
+    this.onchange = function (this: any) {
+      if (this.workspace?.isDragging?.()) return;
+      let legal = false;
+      let block: any = this;
+      do {
+        if (RETURN_FUNCTION_TYPES.includes(block.type)) {
+          legal = true;
+          break;
+        }
+        block = block.getSurroundParent();
+      } while (block);
+      this.setWarningText(legal ? null : "Put 'return' inside a function.");
+      if (!this.isInFlyout) this.setDisabledReason(!legal, "return_outside_function");
+    };
+  });
+}
+
 // --------------------------------- codegen ---------------------------------
 
 function funcName(block: any): string {
@@ -196,6 +222,20 @@ export const plugin: BloqPlugin = {
         tooltip: "Define a function that returns a value.",
       },
     },
+    // Unconditional early return: like the built-in if-return without the "if".
+    // Terminal (no next connection) — nothing runs after an unconditional return.
+    procedures_return: {
+      json: {
+        type: "procedures_return",
+        message0: "return %1",
+        args0: [{ type: "input_value", name: "VALUE" }],
+        inputsInline: true,
+        previousStatement: null,
+        colour: 290,
+        tooltip: "Return from the function, optionally with a value. Leave the slot empty for a bare return.",
+        extensions: [RETURN_GUARD],
+      },
+    },
     // Kept as Blockly built-ins (don't redefine — preserves caller auto-sync).
     procedures_callnoreturn: builtinBlock(),
     procedures_callreturn: builtinBlock(),
@@ -228,6 +268,12 @@ export const plugin: BloqPlugin = {
 
     procedures_callreturn: (block: Blockly.Block, ctx: GenContext): string =>
       `${funcName(block)}(${callArgs(block, ctx).join(", ")})`,
+
+    // "return [value]" — unconditional. Bare `return` when the slot is empty.
+    procedures_return: (block: Blockly.Block, ctx: GenContext) => {
+      const hasValue = !!block.getInputTargetBlock("VALUE");
+      ctx.line(hasValue ? `return ${ctx.value(block, "VALUE", "None")}` : "return", block.id);
+    },
 
     // "if <cond> return <value>" — early return. The VALUE input only exists
     // inside a value-returning function.

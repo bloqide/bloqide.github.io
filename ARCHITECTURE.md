@@ -304,13 +304,14 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   +/− parameter editing (the if/else mutator idiom) that implement Blockly's
   legacy procedure contract (`getProcedureDef` / `callType_` / `mutationToDom`),
   so the built-in call blocks, `PROCEDURE` flyout, and caller auto-sync all keep
-  working. Return values + early-return supported. Codegen emits each definition
+  working. Return values, early-return (if-return), and an unconditional
+  `return` block (guarded to functions) supported. Codegen emits each definition
   as a module-level `def` before the stacks. Definitions aren't hats, so they
   don't trigger scheduler mode; a wait inside a function is blocking (a plain
   `def` can't drive the scheduler).
 - CodeGen: simple ↔ scheduler auto-mode, header/pin-setup dedup, bidirectional
   source map, setup-hat globals, user-function defs, unknown-block detection.
-  (`scripts/codegen.test.ts` — 41 checks pass.)
+  (`scripts/codegen.test.ts` — 44 checks pass.)
 - Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
 - Blockly workspace (custom zelos renderer), toolbox from plugins with a
   drag-out-hides-flyout tweak and a fixed-scale flyout (doesn't grow with zoom),

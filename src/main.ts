@@ -169,9 +169,18 @@ if (Blockly.Variables?.flyoutCategory) {
 }
 
 // Supply the Functions category flyout (make-a-function buttons + def/call blocks
-// for each defined procedure). Same built-in mechanism as Variables above.
+// for each defined procedure). Same built-in mechanism as Variables above, but
+// wrapped to also offer our unconditional `return` block, next to Blockly's
+// if-return in the flyout.
 if (Blockly.Procedures?.flyoutCategory) {
-  workspace.registerToolboxCategoryCallback("PROCEDURE", Blockly.Procedures.flyoutCategory);
+  workspace.registerToolboxCategoryCallback("PROCEDURE", (ws) => {
+    const items = Blockly.Procedures.flyoutCategory(ws) as unknown as Element[];
+    const ret = Blockly.utils.xml.createElement("block");
+    ret.setAttribute("type", "procedures_return");
+    const i = items.findIndex((el) => el.getAttribute?.("type") === "procedures_ifreturn");
+    items.splice(i >= 0 ? i + 1 : items.length, 0, ret);
+    return items as unknown as ReturnType<typeof Blockly.Procedures.flyoutCategory>;
+  });
 }
 
 // Refresh the pinned-open flyout when a function is added / removed / renamed or
