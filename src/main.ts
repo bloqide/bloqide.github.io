@@ -168,6 +168,23 @@ if (Blockly.Variables?.flyoutCategory) {
   workspace.registerToolboxCategoryCallback("VARIABLE", Blockly.Variables.flyoutCategory);
 }
 
+// Refresh the pinned-open flyout when a function is added / removed / renamed or
+// its parameters change, so its call block (and the right number of argument
+// slots) appears without closing and reopening the Functions category.
+const PROC_DEF_TYPES = ["procedures_defnoreturn", "procedures_defreturn"];
+workspace.addChangeListener((e: Blockly.Events.Abstract) => {
+  let touchesProc = false;
+  if (e.type === Blockly.Events.BLOCK_DELETE) {
+    const oldType = (e as Blockly.Events.BlockDelete).oldJson?.type;
+    if (oldType && PROC_DEF_TYPES.includes(oldType)) touchesProc = true;
+  } else if (e.type === Blockly.Events.BLOCK_CREATE || e.type === Blockly.Events.BLOCK_CHANGE) {
+    const id = (e as Blockly.Events.BlockCreate).ids?.[0] ?? (e as Blockly.Events.BlockChange).blockId;
+    const b = id ? workspace.getBlockById(id) : null;
+    if (b && PROC_DEF_TYPES.includes(b.type)) touchesProc = true;
+  }
+  if (touchesProc) workspace.getToolbox()?.refreshSelection();
+});
+
 // Undo / redo. Grey out each button when its stack is empty.
 const btnUndo = document.getElementById("btn-undo") as HTMLButtonElement;
 const btnRedo = document.getElementById("btn-redo") as HTMLButtonElement;
