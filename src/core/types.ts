@@ -148,6 +148,18 @@ export interface BlockDef {
    */
   requiresScheduler?: boolean;
   /**
+   * Block defined by Blockly itself (the built-in procedure blocks). The engine
+   * still wants it in the def/generator maps, but must NOT redefine its JSON —
+   * that would strip Blockly's mutator + parameter/caller-sync machinery.
+   */
+  builtin?: boolean;
+  /**
+   * A function definition: a top-level block that codegen emits as a module-level
+   * `def`, not a scheduler stack (and which does not count toward the >1-hat
+   * scheduler trigger). Generated in blocking (non-scheduler) context.
+   */
+  procedure?: boolean;
+  /**
    * Extra props merged into this block's toolbox flyout entry — chiefly `inputs`
    * with shadow blocks (default plugged-in literals) and `fields` (preset field
    * values). An ARRAY produces several flyout entries of the same block type —

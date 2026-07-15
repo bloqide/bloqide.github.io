@@ -79,6 +79,7 @@ export function registerBlocks(board: Board): void {
   for (const plugin of activePlugins(board)) {
     plugin.onBoardChange?.(board);
     for (const [type, def] of Object.entries(plugin.blocks)) {
+      if (def.builtin) continue; // Blockly owns the definition (e.g. procedures)
       const json = resolveTokens(def.json);
       // defineBlocks replaces any existing definition of the same type.
       Blockly.common.defineBlocks(

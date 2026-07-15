@@ -13,6 +13,7 @@ import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
 import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
 import { plugin as neopixel } from "../plugins/core-neopixel/index";
 import { plugin as sensors } from "../plugins/core-sensors/index";
+import { plugin as functions } from "../plugins/core-functions/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
 // Register block definitions (resolve the pin-dropdown tokens to real options).
@@ -24,18 +25,21 @@ const pinTokens: Record<string, number[]> = {
 };
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
-for (const p of [control, gpio, logic, math, text, variables, motors, ble, neopixel, sensors]) {
+for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors]) {
   for (const [type, def] of Object.entries(p.blocks)) {
-    const json = JSON.parse(JSON.stringify(def.json));
-    for (const k of Object.keys(json)) {
-      if (!k.startsWith("args")) continue;
-      for (const arg of json[k]) {
-        if (typeof arg.options === "string" && arg.options in pinTokens) {
-          arg.options = pinTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]);
+    if (!def.builtin) {
+      // builtin blocks (Blockly's procedure call/if-return) keep their own defs
+      const json = JSON.parse(JSON.stringify(def.json));
+      for (const k of Object.keys(json)) {
+        if (!k.startsWith("args")) continue;
+        for (const arg of json[k]) {
+          if (typeof arg.options === "string" && arg.options in pinTokens) {
+            arg.options = pinTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]);
+          }
         }
       }
+      Blockly.common.defineBlocks(Blockly.common.createBlockDefinitionsFromJsonArray([json]));
     }
-    Blockly.common.defineBlocks(Blockly.common.createBlockDefinitionsFromJsonArray([json]));
     defs.set(type, def);
   }
   for (const [type, g] of Object.entries(p.generators)) gens.set(type, g);
@@ -615,6 +619,181 @@ function num(w: Blockly.Workspace, n: number) {
   const r = cg().generate(w);
   expect("ultrasonic read", r.code, ["import Ultrasonic", "print(Ultrasonic.read(2, 3))"]);
   console.assert(r.requiredLibraries.has("/lib/Ultrasonic.py"), "Ultrasonic.py required");
+}
+
+// --- Test 29: user function definition emits a module-level def, called from a
+// stack, without forcing scheduler mode. Uses synthetic procedure-def/-call
+// blocks (real Blockly blocks + injected defs/gens) to exercise codegen's
+// procedure pass independent of Blockly's built-in procedure internals. ---
+{
+  Blockly.common.defineBlocks(
+    Blockly.common.createBlockDefinitionsFromJsonArray([
+      { type: "test_fndef", message0: "define %1", args0: [{ type: "input_statement", name: "STACK" }], colour: 290 },
+      { type: "test_fncall", message0: "call greet", previousStatement: null, nextStatement: null, colour: 290 },
+    ])
+  );
+  defs.set("test_fndef", { json: {}, procedure: true });
+  gens.set("test_fndef", (b, ctx) => {
+    ctx.line("def greet(name):", b.id);
+    ctx.indented(() => {
+      const before = ctx.linesEmitted();
+      ctx.statement(b, "STACK");
+      if (ctx.linesEmitted() === before) ctx.line("pass", b.id);
+    });
+  });
+  defs.set("test_fncall", { json: {} });
+  gens.set("test_fncall", (b, ctx) => ctx.line('greet("hi")', b.id));
+
+  const w = ws();
+  const def = w.newBlock("test_fndef");
+  body(def, "STACK", w.newBlock("gpio_toggle_led"));
+  const hat = w.newBlock("when_started");
+  connectChain(hat, w.newBlock("test_fncall"));
+  const r = cg().generate(w);
+  expect("function def -> module def, called from stack (simple mode)", r.code, ["def greet(name):", 'greet("hi")'], [
+    "sched.spawn",
+    "# (empty program)",
+  ]);
+  console.assert(r.code.indexOf("def greet") < r.code.indexOf('greet("hi")'), "def must precede its call");
+}
+
+// --- Test 30: the real core-functions generators (fake block + ctx) ---
+function fnCtx(values: Record<string, string> = {}, bodyLines = 0) {
+  const lines: string[] = [];
+  let indent = 0;
+  const ctx = {
+    line: (t: string) => lines.push("    ".repeat(indent) + t),
+    indented: (fn: () => void) => {
+      indent++;
+      try {
+        fn();
+      } finally {
+        indent--;
+      }
+    },
+    statement: () => {
+      for (let i = 0; i < bodyLines; i++) lines.push("    ".repeat(indent) + "BODY");
+    },
+    value: (_b: unknown, name: string, fb: string) => values[name] ?? fb,
+    linesEmitted: () => lines.length,
+  } as unknown as import("../src/core/types").GenContext;
+  return { ctx, lines };
+}
+const fnGen = functions.generators as Record<string, any>;
+{
+  // def, no return: name + params sanitised & deduped; empty body -> pass
+  const { ctx, lines } = fnCtx({}, 0);
+  fnGen.procedures_defnoreturn(
+    {
+      id: "d",
+      getFieldValue: (f: string) => (f === "NAME" ? "add nums" : null),
+      getVars: () => ["x", "y"],
+      getInput: (n: string) => (n === "STACK" ? {} : null),
+    },
+    ctx
+  );
+  expect("fn def: sanitised name/params + empty-body pass", lines.join("\n"), ["def add_nums(x, y):", "    pass"]);
+}
+{
+  // duplicate params after sanitising get suffixed
+  const { ctx, lines } = fnCtx({}, 0);
+  fnGen.procedures_defnoreturn(
+    {
+      id: "d",
+      getFieldValue: (f: string) => (f === "NAME" ? "f" : null),
+      getVars: () => ["a b", "a-b"],
+      getInput: (n: string) => (n === "STACK" ? {} : null),
+    },
+    ctx
+  );
+  expect("fn def: duplicate params deduped", lines.join("\n"), ["def f(a_b, a_b2):"]);
+}
+{
+  // def with return
+  const { ctx, lines } = fnCtx({ RETURN: "x + y" }, 1);
+  fnGen.procedures_defreturn(
+    {
+      id: "d",
+      getFieldValue: (f: string) => (f === "NAME" ? "total" : null),
+      getVars: () => ["x", "y"],
+      getInput: () => ({}),
+    },
+    ctx
+  );
+  expect("fn def: return value", lines.join("\n"), ["def total(x, y):", "    return x + y"]);
+}
+{
+  // call, no return (statement)
+  const { ctx, lines } = fnCtx({ ARG0: "1", ARG1: "2" });
+  fnGen.procedures_callnoreturn(
+    {
+      id: "c",
+      getFieldValue: (f: string) => (f === "NAME" ? "greet" : null),
+      getInput: (n: string) => (n === "ARG0" || n === "ARG1" ? {} : null),
+    },
+    ctx
+  );
+  expect("fn call (statement): args passed", lines.join("\n"), ["greet(1, 2)"]);
+}
+{
+  // call with return (value) -> returns an expression string
+  const { ctx } = fnCtx({ ARG0: "3", ARG1: "5" });
+  const out = fnGen.procedures_callreturn(
+    {
+      getFieldValue: (f: string) => (f === "NAME" ? "add" : null),
+      getInput: (n: string) => (n === "ARG0" || n === "ARG1" ? {} : null),
+    },
+    ctx
+  );
+  expect("fn call (value): returns expression", String(out), ["add(3, 5)"]);
+}
+{
+  // if-return with a value (inside a value-returning function)
+  const { ctx, lines } = fnCtx({ CONDITION: "x > 0", VALUE: "x" });
+  fnGen.procedures_ifreturn({ id: "r", getInput: (n: string) => (n === "VALUE" ? {} : null) }, ctx);
+  expect("fn if-return: with value", lines.join("\n"), ["if x > 0:", "    return x"]);
+}
+{
+  // if-return without a value (inside a void function) — bare `return`, not `return None`
+  const { ctx, lines } = fnCtx({ CONDITION: "done" });
+  fnGen.procedures_ifreturn({ id: "r", getInput: () => null }, ctx);
+  expect("fn if-return: no value -> bare return", lines.join("\n"), ["if done:", "    return"], ["return None"]);
+}
+
+// --- Test 31: the REAL custom definition block — inline +/- params, built-in
+// caller auto-sync (Blockly.Procedures.mutateCallers), serialization, codegen ---
+{
+  const w = ws();
+  const def = w.newBlock("procedures_defnoreturn") as any;
+  def.setFieldValue("greet", "NAME");
+  def.addParam_(); // inline "+" -> param "x"
+  def.addParam_(); // inline "+" -> param "y"
+  console.assert(def.getVars().join(",") === "x,y", "two inline params");
+  console.assert(!!def.getField("P0") && !!def.getField("P1"), "param fields rendered inline");
+
+  const call = w.newBlock("procedures_callnoreturn") as any;
+  call.setFieldValue("greet", "NAME");
+  Blockly.Procedures.mutateCallers(def); // built-in caller must gain 2 arg slots
+  const argN = call.inputList.map((i: any) => i.name).filter((n: string) => /^ARG\d+$/.test(n));
+  console.assert(argN.length === 2, `caller synced to 2 args, got ${argN.length}`);
+
+  // Serialization round-trips the params.
+  const saved = Blockly.serialization.workspaces.save(w);
+  const w2 = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(saved, w2);
+  const def2 = w2.getBlocksByType("procedures_defnoreturn", false)[0] as any;
+  console.assert(def2 && def2.getVars().join(",") === "x,y", "params survive save/load");
+
+  // Codegen over the real blocks.
+  body(def, "STACK", w.newBlock("gpio_toggle_led"));
+  const hat = w.newBlock("when_started");
+  connectChain(hat, call);
+  plug(call, "ARG0", num(w, 1));
+  plug(call, "ARG1", num(w, 2));
+  expect("real function block: def(params) + synced call", cg().generate(w).code, [
+    "def greet(x, y):",
+    "greet(1, 2)",
+  ]);
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);

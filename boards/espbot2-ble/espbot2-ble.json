@@ -48,6 +48,7 @@
     "core-math",
     "core-text",
     "core-variables",
+    "core-functions",
     "core-neopixel",
     "core-sensors",
     "espbot-motors",

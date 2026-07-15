@@ -168,6 +168,12 @@ if (Blockly.Variables?.flyoutCategory) {
   workspace.registerToolboxCategoryCallback("VARIABLE", Blockly.Variables.flyoutCategory);
 }
 
+// Supply the Functions category flyout (make-a-function buttons + def/call blocks
+// for each defined procedure). Same built-in mechanism as Variables above.
+if (Blockly.Procedures?.flyoutCategory) {
+  workspace.registerToolboxCategoryCallback("PROCEDURE", Blockly.Procedures.flyoutCategory);
+}
+
 // Refresh the pinned-open flyout when a function is added / removed / renamed or
 // its parameters change, so its call block (and the right number of argument
 // slots) appears without closing and reopening the Functions category.

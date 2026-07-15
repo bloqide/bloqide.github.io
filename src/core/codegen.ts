@@ -52,6 +52,9 @@ export class CodeGen {
       .filter((b) => this.defs.get(b.type)?.hat);
     const setupHats = allHats.filter((b) => this.defs.get(b.type)?.setup);
     const runHats = allHats.filter((b) => !this.defs.get(b.type)?.setup);
+    // User-defined functions: top-level procedure-definition blocks. Not hats, so
+    // they never become scheduler stacks (nor trigger scheduler mode).
+    const procDefs = workspace.getTopBlocks(true).filter((b) => this.defs.get(b.type)?.procedure);
 
     const schedulerMode = this.decideSchedulerMode(workspace, runHats);
 
@@ -82,6 +85,29 @@ export class CodeGen {
         onAssign: (n) => globalNames.add(n),
       });
       this.genChain(hat.getNextBlock(), ctx);
+    }
+
+    // User-defined functions -> module-level `def`s. Generated in blocking
+    // (non-scheduler) context: a plain def can't drive the cooperative scheduler,
+    // so a wait inside a function blocks rather than yields. The def block's own
+    // generator emits the signature + body (via ctx.statement over its STACK).
+    const procOut: LineRecord[] = [];
+    for (const def of procDefs) {
+      const buf: LineRecord[] = [];
+      const ctx = this.makeContext({
+        schedulerMode: false,
+        imports,
+        setup,
+        setupSeen,
+        functions,
+        requiredLibraries,
+        varNames,
+        buf,
+        onYield: () => {},
+        onAssign: () => {},
+      });
+      this.dispatch(def, ctx);
+      procOut.push(...buf, { text: "" });
     }
 
     // Generate each run hat's body into its own buffer, tracking which variables
@@ -130,10 +156,14 @@ export class CodeGen {
       out.push({ text: "" });
     }
 
+    // User-defined functions (already fully rendered, with source-map ids).
+    out.push(...procOut);
+
     if (!schedulerMode) {
       // At most one stack; emit its body at top level.
       const body = stacks[0]?.buf ?? [];
-      if (body.length === 0 && initBuf.length === 0) out.push({ text: "# (empty program)" });
+      if (body.length === 0 && initBuf.length === 0 && procOut.length === 0)
+        out.push({ text: "# (empty program)" });
       out.push(...body);
     } else {
       stacks.forEach((s, i) => {
