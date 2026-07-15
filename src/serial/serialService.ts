@@ -5,15 +5,24 @@ import type { Board } from "../core/types";
 // - connect():  user-gesture port pick + open, then a single read loop feeds the
 //               terminal and buffers bytes for command responses.
 // - run():      write program as /main.py, then soft-reboot so it runs fresh.
-// - syncLibraries(): upload only changed device files (session hash cache).
+// - syncLibraries(): upload only changed device files, using a device-side
+//               manifest so change detection survives reconnects.
 //
-// NB: this implements plain raw REPL (no raw-paste flow control). Fine for the
-// modest programs the block editor produces; large uploads would want raw-paste.
+// Program submission uses MicroPython raw-paste mode (flow-controlled) when the
+// board advertises it (connection.replMode === "raw-paste"), so large uploads
+// can't overrun the device's input buffer; it falls back to plain chunked raw
+// REPL on boards/firmware that don't support it.
 
 const CTRL_A = "\x01";
 const CTRL_B = "\x02";
 const CTRL_C = "\x03";
 const CTRL_D = "\x04";
+
+// Raw-paste handshake: Ctrl-E, 'A', 0x01. The device replies "R\x01" (supported),
+// "R\x00" (understood but unsupported), or something else (too old to understand).
+const RAW_PASTE_REQ = new Uint8Array([0x05, 0x41, 0x01]);
+const EOT = new Uint8Array([0x04]); // end-of-data / execute marker
+const MANIFEST_PATH = "/lib/.bloq_manifest.json";
 
 export interface SerialCallbacks {
   onData: (text: string) => void;
@@ -42,6 +51,9 @@ export class SerialService {
   private buffer = ""; // full-ish scrollback for reprint
   private forwardToTerminal = true;
   private libHashes = new Map<string, string>();
+  private latin1 = new TextDecoder("latin1"); // byte-exact rx view for protocol parsing
+  private useRawPaste = false; // set from board.connection.replMode on open
+  private manifestLoaded = false; // seeded libHashes from the device manifest yet?
 
   constructor(private cb: SerialCallbacks) {}
 
@@ -94,6 +106,8 @@ export class SerialService {
     }
     this.writer = this.port!.writable!.getWriter();
     this.libHashes.clear();
+    this.manifestLoaded = false;
+    this.useRawPaste = board.connection.replMode === "raw-paste";
     this.open = true;
     this.startReadLoop();
     this.cb.onStatus(true);
@@ -140,7 +154,11 @@ export class SerialService {
         const { value, done } = await this.reader.read();
         if (done) break;
         const text = this.decoder.decode(value, { stream: true });
-        this.rx += text;
+        // Command/protocol parsing needs byte-exact chars: raw-paste sends
+        // control + window bytes that aren't valid UTF-8, which the streaming
+        // decoder above would mangle. Buffer rx as latin1 (each byte -> charCode
+        // 0x00-0xFF); ASCII tokens like "raw REPL"/"OK" still match.
+        this.rx += this.latin1.decode(value);
         if (this.rx.length > 8192) this.rx = this.rx.slice(-4096);
         this.buffer += text;
         if (this.buffer.length > 100000) this.buffer = this.buffer.slice(-80000);
@@ -152,8 +170,12 @@ export class SerialService {
   }
 
   private async write(s: string): Promise<void> {
+    await this.writeBytes(this.encoder.encode(s));
+  }
+
+  private async writeBytes(bytes: Uint8Array): Promise<void> {
     if (!this.writer) throw new Error("Not connected");
-    await this.writer.write(this.encoder.encode(s));
+    await this.writer.write(bytes);
   }
 
   /** Wait until `token` appears in the receive buffer (or timeout). */
@@ -166,34 +188,122 @@ export class SerialService {
   }
 
   /**
-   * Send code through raw REPL and execute it.
+   * Send `code` through the raw REPL, execute it, and return its stdout.
    *
-   * `OK` is only the *compile* acknowledgment — the device sends it before the
-   * code actually runs. For finite scripts (file writes) pass awaitCompletion so
-   * we block until execution truly finishes, otherwise the next execRaw's Ctrl-C
-   * would interrupt a still-running write before it commits to flash. Programs
-   * that loop forever (run()) must NOT wait — there is no completion marker.
+   * Always blocks until execution truly finishes (both 0x04 frames), so callers
+   * can rely on side effects — a file write committed to flash — before the next
+   * command's Ctrl-C could interrupt it, and can read back printed output.
+   * Throws if the device reports an exception on stderr.
+   *
+   * Every use here is a finite script (file writes, manifest reads); run() never
+   * routes an infinite program through execRaw — it writes main.py then reboots.
    */
-  private async execRaw(code: string, awaitCompletion = false): Promise<void> {
-    await this.write(CTRL_C + CTRL_C); // interrupt anything running
-    this.rx = "";
-    await this.write(CTRL_A); // enter raw REPL
-    await this.waitFor("raw REPL");
-    this.rx = "";
-    await this.write(code);
-    await this.write(CTRL_D); // execute
-    await this.waitFor("OK"); // compiled ok
-    if (awaitCompletion) {
-      // Raw REPL frames a finished submission as: OK<stdout>\x04<stderr>\x04>
-      // Two 0x04 markers means execution (not just compilation) is complete.
-      await this.waitForCount("\x04", 2);
-      const stderr = this.rx.split("\x04")[1]?.trim();
-      if (stderr) {
-        await this.write(CTRL_B);
-        throw new Error(stderr.split("\r\n").pop() || stderr);
+  private async execRaw(code: string): Promise<string> {
+    const wasForwarding = this.forwardToTerminal;
+    this.forwardToTerminal = false; // hide raw-REPL framing + flow-control bytes
+    try {
+      await this.write(CTRL_C + CTRL_C); // interrupt anything running
+      this.rx = "";
+      await this.write(CTRL_A); // enter raw REPL
+      await this.waitFor("raw REPL");
+      await this.waitFor(">"); // full "raw REPL; CTRL-B to exit\r\n>" prompt received
+      this.rx = "";
+
+      const codeBytes = this.encoder.encode(code);
+      const usedRawPaste = await this.submitProgram(codeBytes);
+      if (!usedRawPaste) {
+        // Plain raw REPL: 256 bytes every 10ms, then execute.
+        for (let i = 0; i < codeBytes.length; i += 256) {
+          await this.writeBytes(codeBytes.subarray(i, i + 256));
+          await delay(10);
+        }
+        await this.writeBytes(EOT); // execute
+        await this.waitFor("OK"); // compiled ok
       }
+
+      // Both paths now stream: <stdout>\x04<stderr>\x04>. (Raw-paste already
+      // consumed its end-of-data ack inside submitProgram; the plain path
+      // consumed the "OK" above.) Two 0x04 markers means execution is done.
+      await this.waitForCount("\x04", 2);
+      const parts = this.rx.split("\x04");
+      let stdout = parts[0] ?? "";
+      if (!usedRawPaste && stdout.startsWith("OK")) stdout = stdout.slice(2);
+      const stderr = (parts[1] ?? "").trim();
+      await this.write(CTRL_B); // back to friendly REPL
+      if (stderr) throw new Error(stderr.split("\r\n").pop() || stderr);
+      return stdout;
+    } finally {
+      this.forwardToTerminal = wasForwarding;
     }
-    await this.write(CTRL_B); // back to friendly REPL
+  }
+
+  /**
+   * Submit the program to a device already at the raw-REPL prompt. Returns true
+   * if it went out via raw-paste mode (flow-controlled, and the end-of-data ack
+   * already consumed); false means the caller should send it the plain way.
+   *
+   * Protocol per MicroPython's mpremote: request raw-paste, read a 2-byte reply,
+   * and on "R\x01" stream the code within the device's advertised flow-control
+   * window. On "R\x00" (understood, unsupported) or an unrecognised reply, give
+   * up on raw-paste for this connection and fall back.
+   */
+  private async submitProgram(codeBytes: Uint8Array): Promise<boolean> {
+    if (!this.useRawPaste) return false;
+    await this.writeBytes(RAW_PASTE_REQ);
+    const resp = await this.takeBytes(2);
+    if (resp === "R\x01") {
+      await this.rawPasteWrite(codeBytes);
+      return true;
+    }
+    this.useRawPaste = false; // learned once; don't probe again this connection
+    if (resp !== "R\x00") {
+      // Firmware too old to understand the request — it echoed our bytes; resync
+      // to a fresh prompt before the caller sends code the plain way.
+      await this.waitFor(">");
+      this.rx = "";
+    }
+    return false;
+  }
+
+  /**
+   * Stream code in raw-paste mode. The device sends a 2-byte little-endian window
+   * size, then a 0x01 each time it can accept another window's worth; 0x04 means
+   * it wants us to stop. We finish by sending 0x04 and consuming the device's ack.
+   */
+  private async rawPasteWrite(codeBytes: Uint8Array): Promise<void> {
+    const win = await this.takeBytes(2);
+    const windowSize = win.charCodeAt(0) | (win.charCodeAt(1) << 8);
+    let windowRemain = windowSize;
+    let i = 0;
+    while (i < codeBytes.length) {
+      while (windowRemain === 0 || this.rx.length > 0) {
+        const b = (await this.takeBytes(1)).charCodeAt(0);
+        if (b === 0x01) windowRemain += windowSize;
+        else if (b === 0x04) {
+          await this.writeBytes(EOT); // device asked us to stop; acknowledge
+          return;
+        } else throw new Error("raw-paste: unexpected byte from device");
+      }
+      const end = Math.min(i + windowRemain, codeBytes.length);
+      const chunk = codeBytes.subarray(i, end);
+      await this.writeBytes(chunk);
+      windowRemain -= chunk.length;
+      i += chunk.length;
+    }
+    await this.writeBytes(EOT); // end of data
+    await this.takeBytes(1); // device acks with 0x04
+  }
+
+  /** Consume the first `n` chars (= bytes, rx is latin1) from the receive buffer. */
+  private async takeBytes(n: number, timeoutMs = 4000): Promise<string> {
+    const start = performance.now();
+    while (this.rx.length < n) {
+      if (performance.now() - start > timeoutMs) throw new Error("Timeout (raw-paste)");
+      await delay(5);
+    }
+    const s = this.rx.slice(0, n);
+    this.rx = this.rx.slice(n);
+    return s;
   }
 
   /** Wait until `token` has appeared at least `n` times in the receive buffer. */
@@ -235,17 +345,53 @@ export class SerialService {
   }
 
   /**
-   * Upload only device files whose content changed since the last upload this
-   * session. Real sync would read a device-side manifest; the session cache is
-   * enough to keep repeated Runs fast.
+   * Upload only device files whose content changed. Change detection is backed by
+   * a device-side manifest (dest -> content hash) written under /lib, so it
+   * survives disconnects and page reloads: on the first sync of a session we seed
+   * the in-memory cache from the device, then re-upload only what actually
+   * differs. The manifest is rewritten whenever something changed.
    */
   async syncLibraries(files: { dest: string; content: string }[]): Promise<void> {
+    await this.loadManifest();
+    let changed = false;
     for (const f of files) {
       const h = hash(f.content);
       if (this.libHashes.get(f.dest) === h) continue;
       this.cb.onData(`[sync] ${f.dest}\r\n`);
       await this.writeFile(f.dest, f.content);
       this.libHashes.set(f.dest, h);
+      changed = true;
+    }
+    if (changed) await this.saveManifest();
+  }
+
+  /** Seed the hash cache from the device manifest once per session (best-effort). */
+  private async loadManifest(): Promise<void> {
+    if (this.manifestLoaded) return;
+    this.manifestLoaded = true; // even on failure: don't re-probe every Run
+    try {
+      const out = await this.execRaw(
+        `try:\n f=open('${MANIFEST_PATH}')\n print(f.read())\n f.close()\nexcept OSError:\n print('{}')`
+      );
+      const data = JSON.parse(out.trim() || "{}");
+      if (data && typeof data.files === "object" && data.files) {
+        for (const [dest, h] of Object.entries(data.files)) {
+          if (typeof h === "string") this.libHashes.set(dest, h);
+        }
+      }
+    } catch {
+      // No/unreadable manifest: fall back to re-hashing everything this session.
+    }
+  }
+
+  /** Persist the current dest->hash map to the device so the next session can skip. */
+  private async saveManifest(): Promise<void> {
+    const files: Record<string, string> = {};
+    for (const [dest, h] of this.libHashes) files[dest] = h;
+    try {
+      await this.writeFile(MANIFEST_PATH, JSON.stringify({ v: 1, files }));
+    } catch {
+      // Best-effort: a missing manifest just means we re-sync next session.
     }
   }
 
@@ -262,7 +408,7 @@ export class SerialService {
     ]
       .filter(Boolean)
       .join("\n");
-    await this.execRaw(script, true); // wait for the write to commit before returning
+    await this.execRaw(script); // blocks until the write commits to flash
   }
 }
 

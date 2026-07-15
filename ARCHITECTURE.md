@@ -310,7 +310,10 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   detach/revert. Undo/redo is grouping-correct (grid snap folded into the drag)
   and the toolbar buttons disable when a stack is empty.
 - Serial (Web Serial + raw REPL: run / save-to-board / stop / delta lib sync) +
-  xterm terminal.
+  xterm terminal. Program submission uses **raw-paste flow control** when the
+  board advertises `connection.replMode: "raw-paste"` (falls back to chunked raw
+  REPL on older firmware). Lib sync is backed by a **device-side manifest**
+  (`/lib/.bloq_manifest.json`, dest→hash) so change detection survives reconnects.
 - PWA offline precache; installable with a custom app icon (start-block mark,
   maskable + Apple variants).
 - **Project library** (IndexedDB): open / duplicate / delete, per-project
@@ -327,7 +330,6 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 
 - In-app wizard block editor; reusable "make a block" (collapse/unroll/promote);
   in-app Board Editor; block search; i18n; traceback → block highlighting;
-  device-side sync manifest; raw-paste flow control; side-by-side project compare
-  (multi-workspace prerequisite now met); more hardware block bundles
-  (I²C / SPI / NeoPixel) and boards.
+  side-by-side project compare (multi-workspace prerequisite now met); more
+  hardware block bundles (I²C / SPI / NeoPixel) and boards.
 ```
