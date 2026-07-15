@@ -230,7 +230,7 @@ export class SerialService {
       if (!usedRawPaste && stdout.startsWith("OK")) stdout = stdout.slice(2);
       const stderr = (parts[1] ?? "").trim();
       await this.write(CTRL_B); // back to friendly REPL
-      if (stderr) throw new Error(stderr.split("\r\n").pop() || stderr);
+      if (stderr) throw new Error(friendlyDeviceError(stderr));
       return stdout;
     } finally {
       this.forwardToTerminal = wasForwarding;
@@ -437,4 +437,41 @@ function hash(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return h.toString(16);
+}
+
+// Plain-language messages for the device faults an upload can realistically hit.
+// Keyed by POSIX errno, matching MicroPython's `OSError: <n>` tracebacks.
+const OSERROR_MESSAGES: Record<number, string> = {
+  1: "Operation not permitted on the device (EPERM).",
+  2: "File or directory not found on the device (ENOENT).",
+  5: "Device I/O error (EIO) — check the connection.",
+  9: "Bad file descriptor on the device (EBADF).",
+  12: "Out of memory on the device (ENOMEM) — the program or file is too large.",
+  13: "Permission denied on the device (EACCES).",
+  16: "Device or resource busy (EBUSY).",
+  17: "File already exists on the device (EEXIST).",
+  19: "No such device (ENODEV).",
+  21: "Path is a directory, not a file (EISDIR).",
+  22: "Invalid argument (EINVAL).",
+  28: "Device storage is full (ENOSPC) — free space or wipe files, then retry.",
+  30: "Device filesystem is read-only (EROFS).",
+};
+
+// Turn a device stderr traceback into a plain-language message. Keys off the last
+// line (the exception); falls back to that line verbatim when unrecognised.
+function friendlyDeviceError(stderr: string): string {
+  const last =
+    stderr
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .pop() ?? stderr.trim();
+  const os = last.match(/OSError:\s*(?:\[Errno\s*)?(-?\d+)/);
+  if (os) {
+    const code = Math.abs(Number(os[1]));
+    return OSERROR_MESSAGES[code] ?? `Device OS error ${code}.`;
+  }
+  if (/MemoryError/.test(last)) return "Out of memory on the device — the program or file is too large.";
+  if (/SyntaxError/.test(last)) return `Device rejected the code (SyntaxError): ${last}`;
+  return last;
 }
