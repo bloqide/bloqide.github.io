@@ -395,12 +395,32 @@ export class SerialService {
     }
   }
 
-  /** Write a text file to the device filesystem via raw REPL. */
+  /**
+   * Write a text file to the device filesystem via raw REPL.
+   *
+   * The script first checks free space (statvfs) against the new size, crediting
+   * the existing file's bytes since `open('wb')` truncates it. If it can't fit it
+   * raises ENOSPC *before* truncating, so a full device never corrupts the old
+   * file — and the friendly error path reports "storage full" rather than leaving
+   * a half-written file behind. The check is skipped where statvfs is missing.
+   */
   private async writeFile(path: string, content: string): Promise<void> {
     const dir = path.slice(0, path.lastIndexOf("/"));
+    const need = this.encoder.encode(content).length;
     const b64 = btoa(unescape(encodeURIComponent(content)));
+    const preflight =
+      "try:\n" +
+      " _s=uos.statvfs('/')\n" +
+      " try:\n  _e=uos.stat(" +
+      py(path) +
+      ")[6]\n except OSError:\n  _e=0\n" +
+      " if " +
+      need +
+      ">_s[0]*_s[3]+_e:\n  raise OSError(28)\n" +
+      "except AttributeError:\n pass";
     const script = [
       "import ubinascii, uos",
+      preflight,
       dir && dir !== "" ? mkdirs(dir) : "",
       `_f = open(${py(path)}, 'wb')`,
       `_f.write(ubinascii.a2b_base64(${py(b64)}))`,
