@@ -10,6 +10,7 @@ export interface PaneHandlers {
   onSelect: (id: string) => void;
   onToggle: (id: string) => void; // reconnect / disconnect (keeps the device)
   onStop: (id: string) => void; // stop the running program
+  onClear: (id: string) => void; // clear the device's scrollback buffer
   onReset: (id: string) => void; // hardware-reset the board
   onWipe: (id: string) => void; // erase all files on the device
   onClose: (id: string) => void; // remove the device
@@ -22,6 +23,7 @@ interface Pane {
   root: HTMLElement;
   nameEl: HTMLElement;
   stopBtn: HTMLButtonElement;
+  clearBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
   wipeBtn: HTMLButtonElement;
   connBtn: HTMLButtonElement;
@@ -60,6 +62,10 @@ export class TerminalPanel {
     stopBtn.className = "term-stop";
     stopBtn.title = "Stop program";
     stopBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
+    const clearBtn = document.createElement("button");
+    clearBtn.className = "term-clear";
+    clearBtn.title = "Clear terminal";
+    clearBtn.innerHTML = '<i class="fa-solid fa-eraser"></i>';
     const resetBtn = document.createElement("button");
     resetBtn.className = "term-reset";
     resetBtn.title = "Reset board";
@@ -74,7 +80,7 @@ export class TerminalPanel {
     closeBtn.className = "term-close";
     closeBtn.title = "Close device";
     closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-    head.append(nameEl, spacer, stopBtn, resetBtn, wipeBtn, connBtn, closeBtn);
+    head.append(nameEl, spacer, stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn);
 
     const body = document.createElement("div");
     body.className = "term-body";
@@ -96,13 +102,19 @@ export class TerminalPanel {
 
     root.addEventListener("mousedown", () => this.h.onSelect(id));
     // Keep keyboard focus on the terminal: don't let header buttons grab it.
-    for (const b of [stopBtn, resetBtn, wipeBtn, connBtn, closeBtn]) {
+    for (const b of [stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn]) {
       b.tabIndex = -1;
       b.addEventListener("mousedown", (e) => e.preventDefault());
     }
     stopBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.h.onStop(id);
+      term.focus();
+    });
+    clearBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      term.clear(); // wipe the visible scrollback…
+      this.h.onClear(id); // …and the buffered copy kept for pane re-creation
       term.focus();
     });
     resetBtn.addEventListener("click", (e) => {
@@ -130,7 +142,7 @@ export class TerminalPanel {
       if (name && name.trim()) this.h.onRename(id, name.trim());
     });
 
-    const pane: Pane = { id, root, nameEl, stopBtn, resetBtn, wipeBtn, connBtn, closeBtn, term, fit, grow: 1 };
+    const pane: Pane = { id, root, nameEl, stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn, term, fit, grow: 1 };
     this.panes.set(id, pane);
     this.setConnected(id, connected);
     this.refreshSplits();

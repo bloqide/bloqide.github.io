@@ -75,6 +75,11 @@ export class SerialService {
     return this.buffer;
   }
 
+  /** Drop the scrollback so a re-created pane doesn't resurrect old output. */
+  clearBuffer(): void {
+    this.buffer = "";
+  }
+
   /** Pick a port (user gesture) and open it. */
   async attach(board: Board): Promise<void> {
     if (!SerialService.supported) throw new Error("Web Serial not supported (use Chrome/Edge).");

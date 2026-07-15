@@ -481,6 +481,7 @@ const panel = new TerminalPanel(document.getElementById("term-container")!, {
     const s = pool.get(id);
     if (s?.connected) void s.stop();
   },
+  onClear: (id) => pool.get(id)?.clearBuffer(),
   onReset: (id) => {
     const s = pool.get(id);
     if (s?.connected) void s.reset();
