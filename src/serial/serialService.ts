@@ -430,6 +430,38 @@ export class SerialService {
       .join("\n");
     await this.execRaw(script); // blocks until the write commits to flash
   }
+
+  /**
+   * Erase every file and directory on the device filesystem. Destructive — the
+   * caller must confirm with the user first. Clears the sync caches so the next
+   * Run re-uploads everything against the now-empty manifest.
+   */
+  async wipeFiles(): Promise<void> {
+    const script = [
+      "import uos",
+      "def _rm(p):",
+      " try:",
+      "  for e in uos.ilistdir(p):",
+      "   fp=(p+'/'+e[0]) if p!='/' else '/'+e[0]",
+      "   if e[1]&0x4000:",
+      "    _rm(fp)",
+      "    try:",
+      "     uos.rmdir(fp)",
+      "    except OSError:",
+      "     pass",
+      "   else:",
+      "    try:",
+      "     uos.remove(fp)",
+      "    except OSError:",
+      "     pass",
+      " except OSError:",
+      "  pass",
+      "_rm('/')",
+    ].join("\n");
+    await this.execRaw(script);
+    this.libHashes.clear();
+    this.manifestLoaded = false; // manifest is gone; re-read (empty) on next sync
+  }
 }
 
 // Build code that creates intermediate directories, ignoring "already exists".

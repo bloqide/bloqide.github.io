@@ -11,6 +11,7 @@ export interface PaneHandlers {
   onToggle: (id: string) => void; // reconnect / disconnect (keeps the device)
   onStop: (id: string) => void; // stop the running program
   onReset: (id: string) => void; // hardware-reset the board
+  onWipe: (id: string) => void; // erase all files on the device
   onClose: (id: string) => void; // remove the device
   onKey: (id: string, data: string) => void;
   onRename: (id: string, name: string) => void;
@@ -22,6 +23,7 @@ interface Pane {
   nameEl: HTMLElement;
   stopBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
+  wipeBtn: HTMLButtonElement;
   connBtn: HTMLButtonElement;
   closeBtn: HTMLButtonElement;
   term: Terminal;
@@ -62,13 +64,17 @@ export class TerminalPanel {
     resetBtn.className = "term-reset";
     resetBtn.title = "Reset board";
     resetBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
+    const wipeBtn = document.createElement("button");
+    wipeBtn.className = "term-wipe";
+    wipeBtn.title = "Wipe device files";
+    wipeBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
     const connBtn = document.createElement("button");
     connBtn.className = "term-conn";
     const closeBtn = document.createElement("button");
     closeBtn.className = "term-close";
     closeBtn.title = "Close device";
     closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-    head.append(nameEl, spacer, stopBtn, resetBtn, connBtn, closeBtn);
+    head.append(nameEl, spacer, stopBtn, resetBtn, wipeBtn, connBtn, closeBtn);
 
     const body = document.createElement("div");
     body.className = "term-body";
@@ -90,7 +96,7 @@ export class TerminalPanel {
 
     root.addEventListener("mousedown", () => this.h.onSelect(id));
     // Keep keyboard focus on the terminal: don't let header buttons grab it.
-    for (const b of [stopBtn, resetBtn, connBtn, closeBtn]) {
+    for (const b of [stopBtn, resetBtn, wipeBtn, connBtn, closeBtn]) {
       b.tabIndex = -1;
       b.addEventListener("mousedown", (e) => e.preventDefault());
     }
@@ -102,6 +108,11 @@ export class TerminalPanel {
     resetBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.h.onReset(id);
+      term.focus();
+    });
+    wipeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.h.onWipe(id);
       term.focus();
     });
     connBtn.addEventListener("click", (e) => {
@@ -119,7 +130,7 @@ export class TerminalPanel {
       if (name && name.trim()) this.h.onRename(id, name.trim());
     });
 
-    const pane: Pane = { id, root, nameEl, stopBtn, resetBtn, connBtn, closeBtn, term, fit, grow: 1 };
+    const pane: Pane = { id, root, nameEl, stopBtn, resetBtn, wipeBtn, connBtn, closeBtn, term, fit, grow: 1 };
     this.panes.set(id, pane);
     this.setConnected(id, connected);
     this.refreshSplits();
@@ -212,7 +223,7 @@ export class TerminalPanel {
   setBusy(id: string, busy: boolean): void {
     const p = this.panes.get(id);
     if (!p) return;
-    for (const b of [p.stopBtn, p.resetBtn, p.connBtn, p.closeBtn]) b.disabled = busy;
+    for (const b of [p.stopBtn, p.resetBtn, p.wipeBtn, p.connBtn, p.closeBtn]) b.disabled = busy;
     p.root.classList.toggle("busy", busy);
   }
 

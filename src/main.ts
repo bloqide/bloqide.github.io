@@ -485,6 +485,7 @@ const panel = new TerminalPanel(document.getElementById("term-container")!, {
     const s = pool.get(id);
     if (s?.connected) void s.reset();
   },
+  onWipe: (id) => void wipeDevice(id),
   onClose: (id) => void pool.remove(id),
   onKey: (id, data) => void pool.get(id)?.sendKey(data),
   onRename: (id, name) => pool.rename(id, name),
@@ -593,6 +594,24 @@ async function sendToDevice(action: (svc: SerialService) => Promise<void>): Prom
 document.getElementById("btn-run")!.addEventListener("click", () =>
   void sendToDevice((svc) => svc.run(currentCode()))
 );
+
+// Erase every file on a device (destructive — confirm first). Busy-guarded like a
+// flash write so nothing can interrupt the deletions mid-way.
+async function wipeDevice(id: string): Promise<void> {
+  const svc = pool.get(id);
+  if (!svc?.connected) return;
+  if (!confirm("Erase ALL files on this device (main.py, libraries, saved data)?\nThis cannot be undone.")) return;
+  setBusy(id, true);
+  try {
+    panel.writeTo(id, "\r\n[wipe] erasing device files…\r\n");
+    await svc.wipeFiles();
+    panel.writeTo(id, "[wipe] done.\r\n");
+  } catch (err) {
+    panel.writeTo(id, `\r\n[error] ${(err as Error).message}\r\n`);
+  } finally {
+    setBusy(id, false);
+  }
+}
 
 // Drag the drawer's left edge to resize the whole terminal panel.
 document.getElementById("term-width-resizer")!.addEventListener("mousedown", (e) => {
