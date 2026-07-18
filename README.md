@@ -82,3 +82,9 @@ Board/plugin `lib`, `images`, and `examples` files are referenced by **basename*
 
 See ARCHITECTURE.md §4–5 for the generator API (`GenContext`) and the two codegen
 modes.
+
+## License
+
+Bloq is free software, licensed under the [GNU General Public License v3.0](LICENSE)
+or (at your option) any later version. It comes with no warranty; see the license
+text for details.

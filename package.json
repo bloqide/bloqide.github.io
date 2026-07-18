@@ -2,6 +2,7 @@
   "name": "bloq",
   "version": "0.0.1",
   "description": "Offline block-based MicroPython IDE for robots and boards (Web Serial + Blockly)",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
