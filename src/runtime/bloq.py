@@ -1,3 +1,7 @@
+# Bloq — offline block-based MicroPython IDE
+# Copyright (C) 2026 Benjamin Balga
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Bloq cooperative scheduler runtime.
 # Shipped to the device filesystem (/lib/bloq.py) and imported ONLY when a
 # program needs concurrency (more than one hat, or a block that requires the

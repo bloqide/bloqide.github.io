@@ -1,3 +1,7 @@
+# Bloq — offline block-based MicroPython IDE
+# Copyright (C) 2026 Benjamin Balga
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # ESP-NOW helper for Bloq. Wraps MicroPython's espnow radio so the generated
 # main.py stays readable: the program brings up the WLAN and creates one
 # BloqEspNow(wlan), then calls its methods. All the fiddly bits (peer

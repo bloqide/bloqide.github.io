@@ -1,3 +1,7 @@
+# Bloq — offline block-based MicroPython IDE
+# Copyright (C) 2026 Benjamin Balga
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from machine import Pin
 import onewire
 
