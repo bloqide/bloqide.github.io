@@ -51,6 +51,7 @@
     "core-functions",
     "core-neopixel",
     "core-sensors",
+    "core-stepper",
     "espbot-motors",
     "espbot-ble",
     "core-espnow"

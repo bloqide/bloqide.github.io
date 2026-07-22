@@ -7,3 +7,4 @@ dev-dist/
 # SSH keys — never commit
 id_ed25519*
 id_rsa*
+__pycache__/

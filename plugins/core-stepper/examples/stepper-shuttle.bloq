@@ -1,0 +1,209 @@
+{
+  "formatVersion": 1,
+  "name": "stepper-shuttle",
+  "board": "esp32-c3",
+  "blocks": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "when_started",
+          "id": "W^]Hym^no^CuS;:64F+F",
+          "x": 80,
+          "y": 80,
+          "next": {
+            "block": {
+              "type": "comment",
+              "id": "Y|/0f:cp|UvDnz.]]n3A",
+              "fields": {
+                "TEXT": {
+                  "text": "Shuttle a STEP/DIR stepper between two positions.\nWire STEP->GPIO2, DIR->GPIO3, EN->GPIO4, endstop->GPIO5 (to GND).\nSteps per turn = motor steps x microstepping (200 x 16 = 3200).\nIf the measured speed is far below the set speed, the board can't\npulse that fast - lower the speed. Position stays correct either way.",
+                  "width": 240,
+                  "height": 96
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "stepper_setup",
+                  "id": "7,P8]?3=Fn/N;Rtjb5o-",
+                  "fields": {
+                    "STEP": "2",
+                    "DIR": "3",
+                    "EN": "4",
+                    "SPR": 3200
+                  },
+                  "next": {
+                    "block": {
+                      "type": "stepper_config",
+                      "id": "S`+FCJ9$DeIT1:[`468s",
+                      "fields": {
+                        "STEP": "2",
+                        "SUNIT": "",
+                        "AUNIT": ""
+                      },
+                      "inputs": {
+                        "SPEED": {
+                          "block": {
+                            "type": "math_number",
+                            "id": "MSfN;1Mnb$0VCoUjr]}8",
+                            "fields": {
+                              "NUM": 800
+                            }
+                          }
+                        },
+                        "ACCEL": {
+                          "block": {
+                            "type": "math_number",
+                            "id": "*:{lp.x2h@Eh#YRToV%8",
+                            "fields": {
+                              "NUM": 1600
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "stepper_home",
+                          "id": "udhac%s`@!qq^io1fM}{",
+                          "fields": {
+                            "STEP": "2",
+                            "DIRECTION": "-1",
+                            "ENDSTOP": "5",
+                            "ACTIVE": "True",
+                            "SPEED": 120,
+                            "WAIT": "1"
+                          },
+                          "next": {
+                            "block": {
+                              "type": "stepper_limits",
+                              "id": "t{]6`DWaT7E2~^Dgl@Gi",
+                              "fields": {
+                                "STEP": "2",
+                                "UNIT": ""
+                              },
+                              "inputs": {
+                                "MIN": {
+                                  "block": {
+                                    "type": "math_number",
+                                    "id": ")9~G@eQjw0$Q)m{B@rNg",
+                                    "fields": {
+                                      "NUM": 0
+                                    }
+                                  }
+                                },
+                                "MAX": {
+                                  "block": {
+                                    "type": "math_number",
+                                    "id": "/8wa,uK2b}^E,zQZJvHT",
+                                    "fields": {
+                                      "NUM": 6400
+                                    }
+                                  }
+                                }
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "forever",
+                                  "id": "CC@9nkA51wL`rO}Tp!9k",
+                                  "inputs": {
+                                    "DO": {
+                                      "block": {
+                                        "type": "stepper_move",
+                                        "id": "g@}a?;l#_VW|[J]TTZ8v",
+                                        "fields": {
+                                          "STEP": "2",
+                                          "REL": "target",
+                                          "UNIT": "",
+                                          "WAIT": "1"
+                                        },
+                                        "inputs": {
+                                          "AMOUNT": {
+                                            "block": {
+                                              "type": "math_number",
+                                              "id": "2bQh!zT{GjltHA[:U3xj",
+                                              "fields": {
+                                                "NUM": 6400
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "next": {
+                                          "block": {
+                                            "type": "print_terminal",
+                                            "id": "SkG2rR?M:24NI1gb7yoi",
+                                            "inputs": {
+                                              "MSG": {
+                                                "block": {
+                                                  "type": "stepper_measured_speed",
+                                                  "id": "83=:O/W,cJm52A,|P6v3",
+                                                  "fields": {
+                                                    "STEP": "2"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "next": {
+                                              "block": {
+                                                "type": "wait_ms",
+                                                "id": "g93IYVCufr!3*nOkBuJi",
+                                                "fields": {
+                                                  "MS": 500
+                                                },
+                                                "next": {
+                                                  "block": {
+                                                    "type": "stepper_move",
+                                                    "id": "Q#m*-1NJv:hVEfnfUqYg",
+                                                    "fields": {
+                                                      "STEP": "2",
+                                                      "REL": "target",
+                                                      "UNIT": "",
+                                                      "WAIT": "1"
+                                                    },
+                                                    "inputs": {
+                                                      "AMOUNT": {
+                                                        "block": {
+                                                          "type": "math_number",
+                                                          "id": "Dexy*JPt}sN{Dav;#QFg",
+                                                          "fields": {
+                                                            "NUM": 0
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "next": {
+                                                      "block": {
+                                                        "type": "wait_ms",
+                                                        "id": ":`_b}Ou53{6J=$_;YrmX",
+                                                        "fields": {
+                                                          "MS": 500
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "reusableBlocks": [],
+  "detached": false
+}

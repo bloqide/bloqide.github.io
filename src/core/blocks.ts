@@ -51,8 +51,15 @@ function pwmPinOptions(board: Board): OptionList {
   return opts.length ? opts : [["0", "0"]];
 }
 
+// Same as the output list, plus an explicit "none" for genuinely optional pins
+// (a stepper driver's ENABLE line, say). "none" generates the Python literal.
+function optionalOutputPinOptions(board: Board): OptionList {
+  return [["none", "None"], ...outputPinOptions(board)];
+}
+
 const TOKENS: Record<string, (b: Board) => OptionList> = {
   $BOARD_OUTPUT_PINS: outputPinOptions,
+  $BOARD_OUTPUT_PINS_OR_NONE: optionalOutputPinOptions,
   $BOARD_INPUT_PINS: inputPinOptions,
   $BOARD_ANALOG_PINS: analogPinOptions,
   $BOARD_PWM_PINS: pwmPinOptions,

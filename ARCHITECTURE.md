@@ -300,6 +300,20 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   resizable comment), `core-variables`, `core-functions` (custom functions);
   plus board-owned `espbot-motors` / `espbot-ble`. Operators as dropdown blocks
   with preset variants; toolbox preset snippets.
+- **`core-stepper`** — STEP/DIR steppers with trapezoidal acceleration, soft
+  limits and endstop homing, on a vendored+extended `BloqStepper.py` (MIT, from
+  redoxcode/micropython-stepper). Motion is `machine.Timer`-driven so it runs in
+  the background on any port: a "and wait" move is a poll on
+  `is_target_reached()` that adapts to the scheduler exactly like `wait until`,
+  so the plugin never sets `requiresScheduler`. **All motors share one timer**
+  (a module-level engine), because hardware timers are scarce and unportable —
+  an ESP32-C3 has two and silently aliases a third, which is why one-timer-per-
+  motor breaks on the second stepper. The engine ticks at the fastest active
+  motor's rate and advances each motor by a phase accumulator (DDA), so every
+  motor keeps its own speed and ramp; every step is still counted, so position
+  stays exact even when the scheduler queue drops callbacks (overload costs
+  speed, not accuracy). See `plugins/core-stepper/README.md` for the step rate
+  ceiling. Host-side motion tests incl. multi-motor: `scripts/stepper.test.py`.
 - **Custom functions** (`core-functions`): custom definition blocks with inline
   +/− parameter editing (the if/else mutator idiom) that implement Blockly's
   legacy procedure contract (`getProcedureDef` / `callType_` / `mutationToDom`),

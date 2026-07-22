@@ -31,6 +31,7 @@ import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
 import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
 import { plugin as neopixel } from "../plugins/core-neopixel/index";
 import { plugin as sensors } from "../plugins/core-sensors/index";
+import { plugin as stepper } from "../plugins/core-stepper/index";
 import { plugin as functions } from "../plugins/core-functions/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
@@ -43,7 +44,11 @@ const pinTokens: Record<string, number[]> = {
 };
 const defs = new Map<string, BlockDef>();
 const gens = new Map<string, BlockGenerator | ValueGenerator>();
-for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors]) {
+// Options-with-"none" tokens resolve to the literal None plus the pin list.
+const noneTokens: Record<string, number[]> = {
+  $BOARD_OUTPUT_PINS_OR_NONE: (board as any).pins.digital,
+};
+for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     if (!def.builtin) {
       // builtin blocks (Blockly's procedure call/if-return) keep their own defs
@@ -53,6 +58,11 @@ for (const p of [control, gpio, logic, math, text, variables, functions, motors,
         for (const arg of json[k]) {
           if (typeof arg.options === "string" && arg.options in pinTokens) {
             arg.options = pinTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]);
+          } else if (typeof arg.options === "string" && arg.options in noneTokens) {
+            arg.options = [
+              ["none", "None"],
+              ...noneTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]),
+            ];
           }
         }
       }
@@ -848,6 +858,177 @@ const fnGen = functions.generators as Record<string, any>;
   expect("real function block: def(params) + synced call", cg().generate(w).code, [
     "def greet(x, y):",
     "greet(1, 2)",
+  ]);
+}
+
+// --- Test 32: stepper setup + move-and-wait, SIMPLE mode ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const setup = w.newBlock("stepper_setup");
+  setup.setFieldValue("2", "STEP");
+  setup.setFieldValue("3", "DIR");
+  setup.setFieldValue("4", "EN");
+  setup.setFieldValue(1600, "SPR");
+  const mv = w.newBlock("stepper_move");
+  mv.setFieldValue("2", "STEP");
+  plug(mv, "AMOUNT", num(w, 800));
+  connectChain(hat, setup, mv);
+
+  const r = cg().generate(w);
+  expect(
+    "stepper: setup + move to, and wait (simple mode polls)",
+    r.code,
+    [
+      "from BloqStepper import Stepper",
+      "stepper_2 = Stepper(Pin(2, Pin.OUT), Pin(3, Pin.OUT), Pin(4, Pin.OUT), steps_per_rev=1600",
+      "stepper_2.target(800)",
+      "while not stepper_2.is_target_reached():",
+    ],
+    ["sched", "yield"]
+  );
+  console.assert(
+    r.requiredLibraries.has("/lib/BloqStepper.py"),
+    "stepper driver added to the sync set"
+  );
+  console.assert(!r.schedulerMode, "stepper alone must not force scheduler mode");
+}
+
+// --- Test 33: the same wait becomes a cooperative yield in SCHEDULER mode ---
+{
+  const w = ws();
+  const h1 = w.newBlock("when_started");
+  const setup = w.newBlock("stepper_setup");
+  setup.setFieldValue("2", "STEP");
+  const mv = w.newBlock("stepper_move");
+  mv.setFieldValue("2", "STEP");
+  mv.setFieldValue("_deg", "UNIT");
+  plug(mv, "AMOUNT", num(w, 90));
+  connectChain(h1, setup, mv);
+  const h2 = w.newBlock("when_started"); // second hat -> scheduler mode
+  connectChain(h2, w.newBlock("gpio_toggle_led"));
+
+  expect("stepper: degrees + cooperative wait in scheduler mode", cg().generate(w).code, [
+    "stepper_2.target_deg(90)",
+    "yield from sched.wait_until(stepper_2.is_target_reached)",
+  ]);
+}
+
+// --- Test 34: units, relative moves, background moves ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const setup = w.newBlock("stepper_setup");
+  setup.setFieldValue("2", "STEP");
+  const mv = w.newBlock("stepper_move");
+  mv.setFieldValue("2", "STEP");
+  mv.setFieldValue("move", "REL");
+  mv.setFieldValue("_turns", "UNIT");
+  mv.setFieldValue("0", "WAIT"); // in background
+  plug(mv, "AMOUNT", num(w, 3));
+  connectChain(hat, setup, mv);
+
+  expect(
+    "stepper: relative move in turns, no wait emitted",
+    cg().generate(w).code,
+    ["stepper_2.move_turns(3)"],
+    ["is_target_reached"]
+  );
+}
+
+// --- Test 35: rotate / stop / config / limits / enable / position ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const setup = w.newBlock("stepper_setup");
+  setup.setFieldValue("2", "STEP");
+  const cfg = w.newBlock("stepper_config");
+  cfg.setFieldValue("2", "STEP");
+  plug(cfg, "SPEED", num(w, 1200));
+  plug(cfg, "ACCEL", num(w, 2400));
+  const lim = w.newBlock("stepper_limits");
+  lim.setFieldValue("2", "STEP");
+  lim.setFieldValue("_deg", "UNIT");
+  plug(lim, "MIN", num(w, 0));
+  plug(lim, "MAX", num(w, 180));
+  const rot = w.newBlock("stepper_rotate");
+  rot.setFieldValue("2", "STEP");
+  rot.setFieldValue("-1", "DIRECTION");
+  rot.setFieldValue("_rps", "SUNIT");
+  plug(rot, "SPEED", num(w, 2));
+  const stop = w.newBlock("stepper_stop");
+  stop.setFieldValue("2", "STEP");
+  const en = w.newBlock("stepper_enable");
+  en.setFieldValue("2", "STEP");
+  en.setFieldValue("False", "STATE");
+  const say = w.newBlock("print_terminal");
+  const pos = w.newBlock("stepper_position");
+  pos.setFieldValue("2", "STEP");
+  pos.setFieldValue("_deg", "UNIT");
+  plug(say, "MSG", pos);
+  connectChain(hat, setup, cfg, lim, rot, stop, en, say);
+
+  expect("stepper: config / limits / rotate / stop / release / read position", cg().generate(w).code, [
+    "stepper_2.speed(1200)",
+    "stepper_2.acceleration(2400)",
+    "stepper_2.set_limits_deg(0, 180)",
+    "stepper_2.speed_rps(2)",
+    "stepper_2.free_run(-1)",
+    "stepper_2.stop()",
+    "stepper_2.enable(False)",
+    "stepper_2.get_pos_deg()",
+  ]);
+}
+
+// --- Test 36: homing, and a setup with no enable pin ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const setup = w.newBlock("stepper_setup");
+  setup.setFieldValue("2", "STEP");
+  setup.setFieldValue("None", "EN");
+  const home = w.newBlock("stepper_home");
+  home.setFieldValue("2", "STEP");
+  home.setFieldValue("5", "ENDSTOP");
+  connectChain(hat, setup, home);
+
+  expect(
+    "stepper: home to endstop, no enable pin",
+    cg().generate(w).code,
+    [
+      "), None, steps_per_rev=200",
+      "stepper_2.home(Pin(5, Pin.IN, Pin.PULL_UP), direction=-1, speed_sps=100, active_low=True)",
+      "while not stepper_2.is_target_reached():",
+    ],
+    ["Pin(None"]
+  );
+}
+
+// --- Test 37: two motors stay independent (one object per STEP pin) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const s1 = w.newBlock("stepper_setup");
+  s1.setFieldValue("2", "STEP");
+  s1.setFieldValue("3", "DIR");
+  const s2 = w.newBlock("stepper_setup");
+  s2.setFieldValue("6", "STEP");
+  s2.setFieldValue("7", "DIR");
+  const m1 = w.newBlock("stepper_move");
+  m1.setFieldValue("2", "STEP");
+  m1.setFieldValue("0", "WAIT");
+  plug(m1, "AMOUNT", num(w, 100));
+  const m2 = w.newBlock("stepper_move");
+  m2.setFieldValue("6", "STEP");
+  m2.setFieldValue("0", "WAIT");
+  plug(m2, "AMOUNT", num(w, -100));
+  connectChain(hat, s1, s2, m1, m2);
+
+  expect("stepper: two motors get two objects", cg().generate(w).code, [
+    "stepper_2 = Stepper(Pin(2, Pin.OUT), Pin(3, Pin.OUT)",
+    "stepper_6 = Stepper(Pin(6, Pin.OUT), Pin(7, Pin.OUT)",
+    "stepper_2.target(100)",
+    "stepper_6.target(-100)",
   ]);
 }
 
