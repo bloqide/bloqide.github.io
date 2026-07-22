@@ -29,7 +29,7 @@ import { plugin as math } from "../plugins/core-math/index";
 import { plugin as text } from "../plugins/core-text/index";
 import { plugin as variables } from "../plugins/core-variables/index";
 import { plugin as motors } from "../boards/espbot2-ble/plugins/motors/index";
-import { plugin as ble } from "../boards/espbot2-ble/plugins/ble/index";
+import { plugin as ble } from "../plugins/core-ble/index";
 import { plugin as neopixel } from "../plugins/core-neopixel/index";
 import { plugin as sensors } from "../plugins/core-sensors/index";
 import { plugin as stepper } from "../plugins/core-stepper/index";
@@ -1036,40 +1036,42 @@ const fnGen = functions.generators as Record<string, any>;
 // --- Test 38: capability-based plugin activation (selectPlugins) ---
 {
   const all = [control, gpio, neopixel, sensors, stepper, motors, ble];
-  const owner = new Map<string, string | null>([
-    [motors.id, "espbot2-ble"],
-    [ble.id, "espbot2-ble"],
-  ]);
+  // Only espbot-motors is board-owned now; core-ble is a shared, ble-gated plugin.
+  const owner = new Map<string, string | null>([[motors.id, "espbot2-ble"]]);
   const ownerOf = (id: string) => owner.get(id) ?? null;
   const ids = (b: any) => selectPlugins(b, all, ownerOf).map((p) => p.id);
 
   // A gpio board with neopixel: shared plugins auto-activate by capability; a
-  // plugin owned by another board stays hidden. No allow-list involved.
+  // plugin owned by another board stays hidden; ble stays off without the cap.
   const rp = ids({ id: "rp2040", capabilities: ["gpio", "neopixel"] });
   const okShared =
     rp.includes("core-stepper") &&
     rp.includes("core-neopixel") &&
     rp.includes("core-sensors") &&
-    !rp.includes("espbot-motors") &&
-    !rp.includes("espbot-ble");
+    !rp.includes("core-ble") &&
+    !rp.includes("espbot-motors");
 
   // Missing capability gates a plugin out (no neopixel cap -> no neopixel).
   const bare = ids({ id: "bare", capabilities: ["gpio"] });
   const okGate = bare.includes("core-stepper") && !bare.includes("core-neopixel");
 
-  // Board-owned plugins activate on their own board (ownership, not a list).
+  // A plain ESP32 (has ble, no board-owned plugins) gets core-ble but not motors.
+  const esp = ids({ id: "esp32", capabilities: ["gpio", "ble"] });
+  const okCapBle = esp.includes("core-ble") && !esp.includes("espbot-motors");
+
+  // The owning board gets its board-owned plugin plus the shared ble plugin.
   const espbot = ids({ id: "espbot2-ble", capabilities: ["gpio", "neopixel", "ble"] });
-  const okOwned = espbot.includes("espbot-motors") && espbot.includes("espbot-ble");
+  const okOwned = espbot.includes("espbot-motors") && espbot.includes("core-ble");
 
   // pluginsExclude opts a board out of one it would otherwise get.
   const excl = ids({ id: "rp2040", capabilities: ["gpio", "neopixel"], pluginsExclude: ["core-stepper"] });
   const okExclude = !excl.includes("core-stepper") && excl.includes("core-neopixel");
 
-  const pass = okShared && okGate && okOwned && okExclude;
+  const pass = okShared && okGate && okCapBle && okOwned && okExclude;
   console.log(
     pass
       ? "✓ selectPlugins: capability activation + ownership scoping + exclude"
-      : `✗ selectPlugins broken (shared:${okShared} gate:${okGate} owned:${okOwned} exclude:${okExclude})`
+      : `✗ selectPlugins broken (shared:${okShared} gate:${okGate} capBle:${okCapBle} owned:${okOwned} exclude:${okExclude})`
   );
   if (!pass) failures++;
 }

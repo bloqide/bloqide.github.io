@@ -16,12 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { BloqPlugin, GenContext } from "../../../../src/core/types";
+import type { BloqPlugin, GenContext } from "../../src/core/types";
 import type * as Blockly from "blockly";
 
-// Bluetooth-LE UART blocks for the EspBot board: advertise a Nordic UART
-// service and act on a phone gamepad ("control pad"). Codegen ships
-// /lib/bleuart.py and emits bleuart.controlPad.* calls.
+// Bluetooth-LE UART blocks for any ESP32-family board (gated on the `ble`
+// capability): advertise a Nordic UART service and act on a phone gamepad
+// ("control pad"). Codegen ships /lib/bleuart.py and emits bleuart.controlPad.*
+// calls. The control-pad wire format is Adafruit Bluefruit LE Connect's.
 
 const COLOUR = 210; // bluetooth blue
 
@@ -42,7 +43,7 @@ function needsBle(ctx: GenContext): void {
 }
 
 export const plugin: BloqPlugin = {
-  id: "espbot-ble",
+  id: "core-ble",
   name: "Bluetooth",
   version: "1.0.0",
   requires: ["ble"],
