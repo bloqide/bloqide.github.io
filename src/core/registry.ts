@@ -33,6 +33,8 @@ import type {
 
 let _boards: Board[] | null = null;
 let _plugins: BloqPlugin[] | null = null;
+// plugin id -> owning board id (for board-owned plugins), or null if shared.
+let _pluginOwner = new Map<string, string | null>();
 
 function boards(): Board[] {
   if (_boards) return _boards;
@@ -48,11 +50,20 @@ function plugins(): BloqPlugin[] {
   if (_plugins) return _plugins;
   // Shared plugins live in plugins/<id>/; board-owned plugins in
   // boards/<id>/plugins/<name>/. Both merge into one registry keyed by plugin id.
+  // The path tells us the owner: a board-owned plugin only activates on its board.
   const mods = import.meta.glob<{ plugin: BloqPlugin }>(
     ["../../plugins/*/index.ts", "../../boards/*/plugins/*/index.ts"],
     { eager: true }
   );
-  _plugins = Object.values(mods).map((m) => m.plugin);
+  const out: BloqPlugin[] = [];
+  const owner = new Map<string, string | null>();
+  for (const [path, m] of Object.entries(mods)) {
+    const boardMatch = path.match(/\/boards\/([^/]+)\/plugins\//);
+    owner.set(m.plugin.id, boardMatch ? boardMatch[1] : null);
+    out.push(m.plugin);
+  }
+  _plugins = out;
+  _pluginOwner = owner;
   return _plugins;
 }
 
@@ -69,15 +80,35 @@ export function getPlugin(id: string): BloqPlugin | undefined {
 }
 
 /**
- * Plugins active for a board: those it lists AND whose required capabilities the
- * board satisfies. Ordered by toolbox.order.
+ * Pure plugin-selection rule (no glob), so it can be unit-tested:
+ *   - a board-owned plugin activates only on its owning board;
+ *   - any plugin activates only if the board's capabilities satisfy its
+ *     `requires` (no `requires` -> available everywhere);
+ *   - `board.pluginsExclude` opts a board out of one it would otherwise get.
+ * There is no allow-list: adding a shared plugin surfaces it on every capable
+ * board automatically, with no board edits. Ordered by toolbox.order.
  */
-export function activePlugins(board: Board): BloqPlugin[] {
+export function selectPlugins(
+  board: Pick<Board, "id" | "capabilities" | "pluginsExclude">,
+  all: BloqPlugin[],
+  ownerOf: (id: string) => string | null
+): BloqPlugin[] {
   const caps = new Set(board.capabilities);
-  return plugins()
-    .filter((p) => board.plugins.includes(p.id))
-    .filter((p) => (p.requires ?? []).every((c) => caps.has(c)))
+  const exclude = new Set(board.pluginsExclude ?? []);
+  return all
+    .filter((p) => {
+      if (exclude.has(p.id)) return false;
+      const owner = ownerOf(p.id);
+      if (owner !== null && owner !== board.id) return false; // owned by another board
+      return (p.requires ?? []).every((c) => caps.has(c));
+    })
     .sort((a, b) => a.toolbox.order - b.toolbox.order);
+}
+
+/** Plugins active for a board, resolved against the loaded registry. */
+export function activePlugins(board: Board): BloqPlugin[] {
+  const all = plugins(); // also populates _pluginOwner
+  return selectPlugins(board, all, (id) => _pluginOwner.get(id) ?? null);
 }
 
 /** Flat map of block type -> its definition across active plugins. */

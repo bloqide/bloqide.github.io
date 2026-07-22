@@ -111,7 +111,17 @@ export interface Board {
   onboard?: { type: string; pin: number | string; name: string }[];
 
   capabilities: Capability[];
-  plugins: string[]; // plugin ids auto-enabled for this board
+  /**
+   * @deprecated Plugins now activate automatically from `capabilities`: a shared
+   * plugin loads when the board satisfies its `requires`, and a board-owned
+   * plugin loads on its own board. This is no longer an allow-list — kept
+   * optional and ignored so older saved boards still typecheck. To hide a
+   * plugin the board would otherwise get, list it in `pluginsExclude`.
+   */
+  plugins?: string[];
+  /** Shared plugins to hide on this board even though its capabilities satisfy
+   *  their `requires` — an opt-out from automatic activation. */
+  pluginsExclude?: string[];
 
   libraries?: BoardLibrary[];
   examples?: BoardExampleRef[];

@@ -20,6 +20,7 @@
 // Run: npx tsx scripts/codegen.test.ts
 import * as Blockly from "blockly";
 import { CodeGen } from "../src/core/codegen";
+import { selectPlugins } from "../src/core/registry";
 import type { BlockDef, BlockGenerator, ValueGenerator } from "../src/core/types";
 import { plugin as control } from "../plugins/core-control/index";
 import { plugin as gpio } from "../plugins/core-gpio/index";
@@ -1030,6 +1031,47 @@ const fnGen = functions.generators as Record<string, any>;
     "stepper_2.target(100)",
     "stepper_6.target(-100)",
   ]);
+}
+
+// --- Test 38: capability-based plugin activation (selectPlugins) ---
+{
+  const all = [control, gpio, neopixel, sensors, stepper, motors, ble];
+  const owner = new Map<string, string | null>([
+    [motors.id, "espbot2-ble"],
+    [ble.id, "espbot2-ble"],
+  ]);
+  const ownerOf = (id: string) => owner.get(id) ?? null;
+  const ids = (b: any) => selectPlugins(b, all, ownerOf).map((p) => p.id);
+
+  // A gpio board with neopixel: shared plugins auto-activate by capability; a
+  // plugin owned by another board stays hidden. No allow-list involved.
+  const rp = ids({ id: "rp2040", capabilities: ["gpio", "neopixel"] });
+  const okShared =
+    rp.includes("core-stepper") &&
+    rp.includes("core-neopixel") &&
+    rp.includes("core-sensors") &&
+    !rp.includes("espbot-motors") &&
+    !rp.includes("espbot-ble");
+
+  // Missing capability gates a plugin out (no neopixel cap -> no neopixel).
+  const bare = ids({ id: "bare", capabilities: ["gpio"] });
+  const okGate = bare.includes("core-stepper") && !bare.includes("core-neopixel");
+
+  // Board-owned plugins activate on their own board (ownership, not a list).
+  const espbot = ids({ id: "espbot2-ble", capabilities: ["gpio", "neopixel", "ble"] });
+  const okOwned = espbot.includes("espbot-motors") && espbot.includes("espbot-ble");
+
+  // pluginsExclude opts a board out of one it would otherwise get.
+  const excl = ids({ id: "rp2040", capabilities: ["gpio", "neopixel"], pluginsExclude: ["core-stepper"] });
+  const okExclude = !excl.includes("core-stepper") && excl.includes("core-neopixel");
+
+  const pass = okShared && okGate && okOwned && okExclude;
+  console.log(
+    pass
+      ? "✓ selectPlugins: capability activation + ownership scoping + exclude"
+      : `✗ selectPlugins broken (shared:${okShared} gate:${okGate} owned:${okOwned} exclude:${okExclude})`
+  );
+  if (!pass) failures++;
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);

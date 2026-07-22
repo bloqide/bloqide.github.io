@@ -82,15 +82,24 @@ template replacements — alongside the hardware facts.
 | `buses.*` | bus blocks | default sda/scl/freq so I²C works with no config |
 | `constraints.*` | field validators | reject out-of-range ADC/PWM/voltage |
 | `onboard` | toolbox | auto-surface convenience blocks (onboard LED) |
-| `capabilities` | toolbox filter | a block `requires` a capability; hidden otherwise |
-| `plugins` | registry | which block bundles load for this board |
+| `capabilities` | registry + toolbox | drives which plugins load (below); a block `requires` a capability, hidden otherwise |
+| `pluginsExclude` | registry | opt a board out of a plugin its capabilities would otherwise activate |
 | `overrides` | CodeGen | per-block template per dialect (the escape hatch) |
 | `libraries` | device sync | `.py` files shipped to the board filesystem |
 | `examples` | gallery | separate `.bloq` files, lazy-loaded |
 | `icon` | UI | preset name, or user-imported image (blob in IndexedDB) |
 
-**Decoupling rule:** `capabilities` = hardware facts; `plugins` = which bundles
-load; `overrides` = how blocks generate for this dialect. A block references a
+**Plugin activation is automatic from `capabilities`.** A shared plugin
+(`plugins/<id>/`) loads on a board when the board satisfies its `requires`
+(no `requires` → everywhere); a board-owned plugin (`boards/<id>/plugins/`)
+loads only on its own board. There is no per-board allow-list — dropping a new
+shared plugin in surfaces it on every capable board with no board edits.
+`pluginsExclude` is the rare opt-out. (`Board.plugins` is retained, optional and
+ignored, only so older saved boards still parse.) The rule lives in
+`selectPlugins` (`src/core/registry.ts`).
+
+**Decoupling rule:** `capabilities` = hardware facts (and the activation gate);
+`overrides` = how blocks generate for this dialect. A block references a
 *capability*, never a board — so blocks and boards evolve independently.
 
 ---
@@ -100,7 +109,9 @@ load; `overrides` = how blocks generate for this dialect. A block references a
 A plugin is a **file-based TS module** exporting a `BloqPlugin`. Shared plugins
 live in `plugins/<id>/index.ts`; a board's own plugins live under
 `boards/<id>/plugins/<name>/index.ts`. Both are glob-loaded into one registry
-keyed by plugin `id`; a board activates the ones its `plugins` list names.
+keyed by plugin `id`; the glob path also records ownership (board-owned vs
+shared). A board activates plugins automatically by capability (see §3): shared
+plugins whose `requires` it satisfies, plus its own board-owned plugins.
 Trusted, so full JS generators are allowed. A plugin's `lib`/`image`/`example`
 files are referenced by basename. See `src/core/types.ts` (`BloqPlugin`).
 
