@@ -316,6 +316,14 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   so any ESP32-family board gets it, shipping `bleuart.py`); plus board-owned
   `espbot-motors`. Operators as dropdown blocks with preset variants; toolbox
   preset snippets.
+- **`core-servo`** — hobby servos (positional and continuous-rotation) on any
+  PWM pin, shipping `BloqServo.py`. A servo is identified by its signal pin, so
+  no setup block is needed — the first block naming a pin creates the object,
+  and the pin stays quiet until commanded (`set up servo` only calibrates the
+  pulse range, hoisted into the header). The timed move ("move to X° over N ms")
+  interpolates the pulse width from the clock and reports done, so its wait
+  adapts to the mode exactly like `wait until` and the plugin never sets
+  `requiresScheduler`. Host-side driver tests: `scripts/servo.test.py`.
 - **`core-stepper`** — STEP/DIR steppers with trapezoidal acceleration, soft
   limits and endstop homing, on a vendored+extended `BloqStepper.py` (MIT, from
   redoxcode/micropython-stepper). Motion is `machine.Timer`-driven so it runs in

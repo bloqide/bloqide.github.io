@@ -33,6 +33,7 @@ import { plugin as ble } from "../plugins/core-ble/index";
 import { plugin as neopixel } from "../plugins/core-neopixel/index";
 import { plugin as sensors } from "../plugins/core-sensors/index";
 import { plugin as stepper } from "../plugins/core-stepper/index";
+import { plugin as servo } from "../plugins/core-servo/index";
 import { plugin as functions } from "../plugins/core-functions/index";
 import board from "../boards/esp32-c3/esp32-c3.json";
 
@@ -49,7 +50,7 @@ const gens = new Map<string, BlockGenerator | ValueGenerator>();
 const noneTokens: Record<string, number[]> = {
   $BOARD_OUTPUT_PINS_OR_NONE: (board as any).pins.digital,
 };
-for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper]) {
+for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper, servo]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     if (!def.builtin) {
       // builtin blocks (Blockly's procedure call/if-return) keep their own defs
@@ -1031,6 +1032,95 @@ const fnGen = functions.generators as Record<string, any>;
     "stepper_2.target(100)",
     "stepper_6.target(-100)",
   ]);
+}
+
+// --- Test 39: servo write + timed move, SIMPLE mode ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const go = w.newBlock("servo_write");
+  go.setFieldValue("0", "PIN");
+  plug(go, "ANGLE", num(w, 90));
+  const mv = w.newBlock("servo_move_timed");
+  mv.setFieldValue("0", "PIN");
+  plug(mv, "ANGLE", num(w, 180));
+  plug(mv, "MS", num(w, 1000));
+  connectChain(hat, go, mv);
+
+  const r = cg().generate(w);
+  expect(
+    "servo: implicit object, angle + timed move (simple mode polls)",
+    r.code,
+    [
+      "from BloqServo import Servo",
+      "servo_0 = Servo(0)",
+      "servo_0.angle(90)",
+      "servo_0.move_to(180, 1000)",
+      "while not servo_0.update():",
+      "time.sleep_ms(20)",
+    ],
+    ["sched", "yield"]
+  );
+  console.assert(r.requiredLibraries.has("/lib/BloqServo.py"), "servo driver added to the sync set");
+  console.assert(!r.schedulerMode, "servo alone must not force scheduler mode");
+}
+
+// --- Test 40: the timed move becomes a cooperative yield in SCHEDULER mode ---
+{
+  const w = ws();
+  const hat1 = w.newBlock("when_started");
+  const mv = w.newBlock("servo_move_timed");
+  mv.setFieldValue("0", "PIN");
+  plug(mv, "ANGLE", num(w, 180));
+  plug(mv, "MS", num(w, 1000));
+  connectChain(hat1, mv);
+  const hat2 = w.newBlock("when_started");
+  const sp = w.newBlock("servo_speed");
+  sp.setFieldValue("1", "PIN");
+  plug(sp, "SPEED", num(w, -40));
+  connectChain(hat2, sp);
+
+  const r = cg().generate(w);
+  expect("servo: timed move yields under the scheduler", r.code, [
+    "yield from sched.wait_until(servo_0.update)",
+    "servo_1.speed(-40)",
+  ]);
+  console.assert(r.schedulerMode, "two hats => scheduler mode");
+}
+
+// --- Test 41: calibration is hoisted; each pin gets its own servo ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const cal = w.newBlock("servo_setup");
+  cal.setFieldValue("2", "PIN");
+  cal.setFieldValue(600, "MIN_US");
+  cal.setFieldValue(2400, "MAX_US");
+  cal.setFieldValue(270, "ANGLE");
+  const pulse = w.newBlock("servo_pulse");
+  pulse.setFieldValue("2", "PIN");
+  plug(pulse, "US", num(w, 1500));
+  const off = w.newBlock("servo_power");
+  off.setFieldValue("3", "PIN");
+  off.setFieldValue("release", "STATE");
+  connectChain(hat, cal, pulse, off);
+
+  const code = cg().generate(w).code;
+  expect("servo: calibration hoisted into setup, one object per pin", code, [
+    "servo_2 = Servo(2)",
+    "servo_2.set_range(600, 2400, 270)",
+    "servo_3 = Servo(3)",
+    "servo_2.write_us(1500)",
+    "servo_3.release()",
+  ]);
+  // The range must be applied before the program body runs, not where the block sits.
+  const lines = code.split("\n");
+  const at = (s: string) => lines.findIndex((l) => l.includes(s));
+  console.assert(
+    at("servo_2 = Servo(2)") < at("servo_2.set_range(") &&
+      at("servo_2.set_range(") < at("servo_2.write_us("),
+    "servo: set_range lands after construction and before any motion"
+  );
 }
 
 // --- Test 38: capability-based plugin activation (selectPlugins) ---
