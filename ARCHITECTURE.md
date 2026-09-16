@@ -264,7 +264,10 @@ in-memory session hash cache; a full impl reads a device-side manifest.)*
 - **Menu bar** (top): view tabs (Blocks / Split / Code), Connect, Run, Save to
   board, Stop, Terminal.
 - **Toolbox** (left): vertical category rail (icon + text); clicking opens a
-  flyout; drag blocks onto the canvas. Blockly's category toolbox.
+  flyout; drag blocks onto the canvas. Blockly's category toolbox. Plugins that
+  name the same category merge into one (a shared Servo plugin joins a board's
+  own "Motors" category); the lowest-order plugin of the group gives the
+  category its colour and icon.
 - **Canvas**: zoom, pan, grid, auto-size, trashcan (Blockly). Zelos renderer for
   the rounded Scratch look.
 - **Code view**: read-only, line-numbered, source-map-highlighted; **Split** shows

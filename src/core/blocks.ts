@@ -17,7 +17,7 @@
  */
 
 import * as Blockly from "blockly";
-import type { Board } from "./types";
+import type { Board, BloqPlugin } from "./types";
 import { activePlugins } from "./registry";
 
 // Registers Blockly block definitions for a board's active plugins and builds
@@ -116,44 +116,59 @@ export function registerBlocks(board: Board): void {
   registeredForBoard = board.id;
 }
 
-/** Build a Blockly category toolbox from the board's active plugins. */
+/** Build a Blockly category toolbox from the board's active plugins.
+ *  Plugins that name the same category merge into one — that's how a shared
+ *  plugin (Servo) can land in the same "Motors" category as a board's own
+ *  motor blocks. */
 export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinition {
-  const contents = activePlugins(board).map((plugin) => {
+  // activePlugins is ordered by toolbox.order, and a Map keeps insertion order,
+  // so categories keep that order and the first plugin of a group (the lowest
+  // order) sets the category's colour and icon.
+  const groups = new Map<string, BloqPlugin[]>();
+  for (const plugin of activePlugins(board)) {
+    const group = groups.get(plugin.toolbox.category);
+    if (group) group.push(plugin);
+    else groups.set(plugin.toolbox.category, [plugin]);
+  }
+
+  const contents = [...groups].map(([name, plugins]) => {
+    const head = plugins[0];
     const category: Record<string, unknown> = {
       kind: "category",
-      name: plugin.toolbox.category,
-      colour: String(plugin.toolbox.colour),
+      name,
+      colour: String(head.toolbox.colour),
       // Replace Blockly's default icon span classes with a FontAwesome glyph.
       // Default to the solid style unless the faIcon names one (e.g. brand icons
       // like fa-brands fa-bluetooth-b, which aren't in the solid set).
-      cssConfig: plugin.toolbox.faIcon
-        ? { icon: `cat-icon ${faClass(plugin.toolbox.faIcon)}` }
+      cssConfig: head.toolbox.faIcon
+        ? { icon: `cat-icon ${faClass(head.toolbox.faIcon)}` }
         : undefined,
     };
-    if (plugin.toolbox.custom) {
+    if (head.toolbox.custom) {
       // Dynamic flyout (e.g. Variables): Blockly's registered callback supplies
-      // the blocks, plus affordances like the "Create variable" button.
-      category.custom = plugin.toolbox.custom;
-    } else {
-      // A block yields one flyout entry, or several when its `toolbox` is an
-      // array of variants (e.g. one preset per operator of a dropdown block).
-      const contents: Record<string, unknown>[] = Object.entries(plugin.blocks).flatMap(
-        ([type, def]) => {
-          const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
-          return variants.map((extra) => ({ kind: "block", type, ...extra }));
-        }
-      );
-      // Preset snippets: the plugin's own, plus any the board targets at this
-      // category. Grouped under a label at the bottom of the flyout.
-      const presets = [
-        ...(plugin.presets ?? []),
-        ...(board.presets?.[plugin.toolbox.category] ?? []),
-      ];
-      if (presets.length) {
-        contents.push({ kind: "label", text: "Presets" }, ...presets);
-      }
-      category.contents = contents;
+      // the blocks, plus affordances like the "Create variable" button. It owns
+      // the whole flyout, so nothing merges into it.
+      category.custom = head.toolbox.custom;
+      return category;
     }
+    // A block yields one flyout entry, or several when its `toolbox` is an
+    // array of variants (e.g. one preset per operator of a dropdown block).
+    const entries: Record<string, unknown>[] = plugins.flatMap((plugin) =>
+      Object.entries(plugin.blocks).flatMap(([type, def]) => {
+        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
+        return variants.map((extra) => ({ kind: "block", type, ...extra }));
+      })
+    );
+    // Preset snippets: the plugins' own, plus any the board targets at this
+    // category. Grouped under a label at the bottom of the flyout.
+    const presets = [
+      ...plugins.flatMap((plugin) => plugin.presets ?? []),
+      ...(board.presets?.[name] ?? []),
+    ];
+    if (presets.length) {
+      entries.push({ kind: "label", text: "Presets" }, ...presets);
+    }
+    category.contents = entries;
     return category;
   });
   return { kind: "categoryToolbox", contents } as unknown as Blockly.utils.toolbox.ToolboxDefinition;
