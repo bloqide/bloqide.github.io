@@ -342,6 +342,10 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 - Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
 - Blockly workspace (custom zelos renderer), toolbox from plugins with a
   drag-out-hides-flyout tweak and a fixed-scale flyout (doesn't grow with zoom),
+  kept in step with its pane by a ResizeObserver — Blockly measures its parent
+  only on a window resize, and the pane shrinks after injection when boot()
+  renders the tab bar, which otherwise leaves the flyout taller than the visible
+  area and its scrollbar short of the last block,
   live codegen, Split view (resizable) with source-map highlighting,
   detach/revert. Undo/redo is grouping-correct (grid snap folded into the drag)
   and the toolbar buttons disable when a stack is empty.

@@ -105,6 +105,28 @@ if (flyout) {
     WORKSPACE_START_SCALE;
 }
 
+// Keep the workspace sized to its pane. Blockly only re-measures on a window
+// resize, but the pane can change height on its own: the tab bar is rendered
+// asynchronously by boot() and grows from empty to a row of tabs, which shortens
+// #work *after* injection. A stale (too tall) measurement leaves the pinned
+// flyout taller than the visible area, so its scrollbar range stops short and
+// the last block in a category is clipped — until any window resize fixes it.
+{
+  const pane = document.getElementById("blockly")!;
+  let lastW = 0;
+  let lastH = 0;
+  new ResizeObserver(() => {
+    const { width, height } = pane.getBoundingClientRect();
+    // Hidden (full Code view) reports 0x0 — resizing then would zero Blockly's
+    // metrics and snap the canvas back to the origin when it reappears.
+    if (!width || !height) return;
+    if (width === lastW && height === lastH) return;
+    lastW = width;
+    lastH = height;
+    Blockly.svgResize(workspace);
+  }).observe(pane);
+}
+
 // Drag-out UX: the flyout is pinned open, so it covers the drop area. While
 // dragging a block out of it, hide it once the pointer crosses its right edge
 // (via a CSS class on the container, so a Blockly re-render can't undo it —
