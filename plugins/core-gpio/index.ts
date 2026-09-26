@@ -43,6 +43,12 @@ function reservePin(
   return v;
 }
 
+// The board's onboard LED pin (its "LED" alias), falling back to GPIO8.
+function ledPin(ctx: GenContext): string {
+  const led = ctx.board.pins.aliases["LED"];
+  return led !== undefined ? String(led) : "8";
+}
+
 export const plugin: BloqPlugin = {
   id: "core-gpio",
   name: "Pins",
@@ -110,6 +116,26 @@ export const plugin: BloqPlugin = {
           PIN: { shadow: { type: "math_number", fields: { NUM: 0 } } },
           VALUE: { shadow: { type: "math_number", fields: { NUM: 1 } } },
         },
+      },
+    },
+    gpio_set_led: {
+      kind: "statement",
+      json: {
+        type: "gpio_set_led",
+        message0: "set onboard LED to %1",
+        args0: [
+          {
+            type: "field_dropdown",
+            name: "VAL",
+            options: [
+              ["ON", "1"],
+              ["OFF", "0"],
+            ],
+          },
+        ],
+        previousStatement: null,
+        nextStatement: null,
+        colour: 160,
       },
     },
     gpio_toggle_led: {
@@ -193,10 +219,12 @@ export const plugin: BloqPlugin = {
       const pin = ctx.value(block, "PIN", "0");
       ctx.line(`Pin(${pin}, Pin.OUT).value(${ctx.value(block, "VALUE", "0")})`, block.id);
     },
+    gpio_set_led: (block: Blockly.Block, ctx: GenContext) => {
+      const v = reservePin(ctx, ledPin(ctx), "OUT");
+      ctx.line(`${v}.value(${block.getFieldValue("VAL")})`, block.id);
+    },
     gpio_toggle_led: (block: Blockly.Block, ctx: GenContext) => {
-      const led = ctx.board.pins.aliases["LED"];
-      const pin = led !== undefined ? String(led) : "8";
-      const v = reservePin(ctx, pin, "OUT");
+      const v = reservePin(ctx, ledPin(ctx), "OUT");
       ctx.line(`${v}.value(not ${v}.value())`, block.id);
     },
     gpio_read: (block: Blockly.Block, ctx: GenContext) => {

@@ -1166,5 +1166,18 @@ const fnGen = functions.generators as Record<string, any>;
   if (!pass) failures++;
 }
 
+// --- Test 42: set onboard LED ON/OFF targets the board's LED alias ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const on = w.newBlock("gpio_set_led");
+  on.setFieldValue("1", "VAL");
+  const off = w.newBlock("gpio_set_led");
+  off.setFieldValue("0", "VAL");
+  connectChain(hat, on, off);
+  const code = cg().generate(w).code;
+  expect("set onboard LED on/off", code, ["pin_8_out = Pin(8, Pin.OUT)", "pin_8_out.value(1)", "pin_8_out.value(0)"]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

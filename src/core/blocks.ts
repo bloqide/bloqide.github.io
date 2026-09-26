@@ -31,14 +31,9 @@ const gpio = (nums: number[]): OptionList => nums.map((p) => [`GPIO${p}`, String
 const aliasOpts = (board: Board): OptionList =>
   Object.entries(board.pins.aliases).map(([name, expr]) => [`${name} (${expr})`, String(expr)]);
 
-// Output-ish dropdowns (write, PWM): aliases first, so the LED is a natural
-// default. Input dropdowns (read, button): real GPIOs first, so they don't
-// default to an output alias like the LED.
-function outputPinOptions(board: Board): OptionList {
-  const opts = [...aliasOpts(board), ...gpio(board.pins.digital)];
-  return opts.length ? opts : [["0", "0"]];
-}
-function inputPinOptions(board: Board): OptionList {
+// Real GPIOs first, aliases (e.g. the onboard LED) last, so a freshly dropped
+// block never defaults to the LED — it has its own dedicated blocks.
+function digitalPinOptions(board: Board): OptionList {
   const opts = [...gpio(board.pins.digital), ...aliasOpts(board)];
   return opts.length ? opts : [["0", "0"]];
 }
@@ -47,23 +42,23 @@ function analogPinOptions(board: Board): OptionList {
   return opts.length ? opts : [["0", "0"]];
 }
 function pwmPinOptions(board: Board): OptionList {
-  const opts = [...aliasOpts(board), ...gpio(board.pins.pwm)];
+  const opts = [...gpio(board.pins.pwm), ...aliasOpts(board)];
   return opts.length ? opts : [["0", "0"]];
 }
 
-// Same as the output list, plus an explicit "none" for genuinely optional pins
+// Same as the digital list, plus an explicit "none" for genuinely optional pins
 // (a stepper driver's ENABLE line, say). "none" generates the Python literal.
 function optionalOutputPinOptions(board: Board): OptionList {
-  return [["none", "None"], ...outputPinOptions(board)];
+  return [["none", "None"], ...digitalPinOptions(board)];
 }
 
 const TOKENS: Record<string, (b: Board) => OptionList> = {
-  $BOARD_OUTPUT_PINS: outputPinOptions,
+  $BOARD_OUTPUT_PINS: digitalPinOptions,
   $BOARD_OUTPUT_PINS_OR_NONE: optionalOutputPinOptions,
-  $BOARD_INPUT_PINS: inputPinOptions,
+  $BOARD_INPUT_PINS: digitalPinOptions,
   $BOARD_ANALOG_PINS: analogPinOptions,
   $BOARD_PWM_PINS: pwmPinOptions,
-  $BOARD_DIGITAL_PINS: outputPinOptions, // backward-compat alias
+  $BOARD_DIGITAL_PINS: digitalPinOptions, // backward-compat alias
 };
 
 // The board whose pins the dropdowns should reflect right now. Kept live so
