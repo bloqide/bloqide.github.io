@@ -27,7 +27,7 @@ import { activePlugins } from "./registry";
 
 type OptionList = [string, string][];
 
-const gpio = (nums: number[]): OptionList => nums.map((p) => [`GPIO${p}`, String(p)]);
+const gpio = (nums: number[]): OptionList => nums.map((p) => [`IO${p}`, String(p)]);
 const aliasOpts = (board: Board): OptionList =>
   Object.entries(board.pins.aliases).map(([name, expr]) => [`${name} (${expr})`, String(expr)]);
 

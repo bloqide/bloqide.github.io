@@ -38,7 +38,7 @@
     "logicVoltage": 3.3
   },
 
-  "onboard": [{ "type": "led", "pin": 9, "name": "onboard LED (GPIO9)" }],
+  "onboard": [{ "type": "led", "pin": 9, "name": "onboard LED (IO9)" }],
 
   "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi", "ble", "espnow", "neopixel"],
 

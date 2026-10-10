@@ -59,11 +59,11 @@ for (const p of [control, gpio, logic, math, text, variables, functions, motors,
         if (!k.startsWith("args")) continue;
         for (const arg of json[k]) {
           if (typeof arg.options === "string" && arg.options in pinTokens) {
-            arg.options = pinTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]);
+            arg.options = pinTokens[arg.options].map((n) => [`IO${n}`, String(n)]);
           } else if (typeof arg.options === "string" && arg.options in noneTokens) {
             arg.options = [
               ["none", "None"],
-              ...noneTokens[arg.options].map((n) => [`GPIO${n}`, String(n)]),
+              ...noneTokens[arg.options].map((n) => [`IO${n}`, String(n)]),
             ];
           }
         }

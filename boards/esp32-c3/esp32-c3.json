@@ -38,7 +38,7 @@
     "logicVoltage": 3.3
   },
 
-  "onboard": [{ "type": "led", "pin": 8, "name": "onboard LED (GPIO8)" }],
+  "onboard": [{ "type": "led", "pin": 8, "name": "onboard LED (IO8)" }],
 
   "capabilities": ["gpio", "adc", "pwm", "i2c", "spi", "uart", "wifi", "ble", "espnow", "neopixel"],
 

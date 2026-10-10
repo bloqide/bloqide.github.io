@@ -17,7 +17,7 @@
               "id": "Y|/0f:cp|UvDnz.]]n3A",
               "fields": {
                 "TEXT": {
-                  "text": "Shuttle a STEP/DIR stepper between two positions.\nWire STEP->GPIO2, DIR->GPIO3, EN->GPIO4, endstop->GPIO5 (to GND).\nSteps per turn = motor steps x microstepping (200 x 16 = 3200).\nIf the measured speed is far below the set speed, the board can't\npulse that fast - lower the speed. Position stays correct either way.",
+                  "text": "Shuttle a STEP/DIR stepper between two positions.\nWire STEP->IO2, DIR->IO3, EN->IO4, endstop->IO5 (to GND).\nSteps per turn = motor steps x microstepping (200 x 16 = 3200).\nIf the measured speed is far below the set speed, the board can't\npulse that fast - lower the speed. Position stays correct either way.",
                   "width": 240,
                   "height": 96
                 }
