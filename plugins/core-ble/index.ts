@@ -40,6 +40,7 @@ const BUTTONS: [string, string][] = [
 function needsBle(ctx: GenContext): void {
   ctx.ensureImport("import bleuart");
   ctx.requireLibrary("/lib/bleuart.py");
+  ctx.requireLibrary("/lib/bloq_ble.py"); // shared radio manager bleuart runs on
 }
 
 export const plugin: BloqPlugin = {

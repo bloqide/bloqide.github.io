@@ -250,6 +250,63 @@ renameable per session.
   runs on power-up.
 - **Stop** — `Ctrl-C` `Ctrl-C`.
 
+### Bluetooth upload link
+
+ESP32-family boards can also be driven over Bluetooth LE, with **the same
+raw-REPL protocol** — only the transport changes:
+
+- **Device:** `src/runtime/bloq_link.py` mirrors the REPL onto a custom GATT
+  service (`41f20001-…`; RX write, TX notify) with `os.dupterm`. Bluetooth
+  events are serviced between bytecodes, so the link answers — and Ctrl-C
+  interrupts — while a program runs.
+- **Started from `boot.py`**, in a marker-delimited block
+  (`# >>> bloq-ble-link` … `# <<< bloq-ble-link`) that
+  `SerialService.setBootLink()` adds or strips without touching the rest of the
+  file. It is **off by default**: every Run decides it (`bootLinkFor` in
+  `main.ts`) — kept over Bluetooth (removing it would cut the link), and over
+  USB only while the device pane's Bluetooth toggle is on. So the radio stays
+  off unless asked for, and an unattended board isn't left with an open REPL.
+- **App:** `src/serial/blePort.ts` wraps Web Bluetooth in the Web Serial port
+  shape (`open/close/readable/writable/getInfo`), so `SerialService` is
+  unchanged apart from picking it. A Run soft-reboots the board, which shuts
+  Bluetooth down; the port hides that by keeping its streams open, reconnecting
+  in the background and holding writes until the link is back. Output printed
+  before the reconnect (the first ~second of a Run) is not seen. No reset line:
+  Reset sends `machine.reset()`.
+- **Reconnect rules learned on Chrome/Brave (macOS)** — each fixed a real wedge
+  that only a page reload cleared: keep **one** `connect()` pending and never
+  cancel it mid-retry; never start service discovery on a link that is going
+  away (settle briefly after a drop / after connecting and re-check
+  `gatt.connected`), because a discovery that fails that way leaves every later
+  `getPrimaryService()` hanging; and put a timeout on discovery itself. Chrome
+  returns the **same `BluetoothDevice`** for the same board, so one `BlePort`
+  owns a device at a time: reopening it elsewhere takes the live connection
+  over, and a port that gave up stops reacting to the device's events.
+- **Driver changes Bluetooth forced** (both apply to USB too): entering the raw
+  REPL waits for the *whole* `raw REPL; CTRL-B to exit\r\n>` prompt, since its
+  pieces arrive in separate notifications; and files over 3 KB are written in
+  chunks to `<path>.tmp`, then renamed over the target. Bluetooth takes a big
+  share of the C3's heap, and one script carrying a whole library as base64
+  (BloqStepper.py, 23 KB) raised MemoryError.
+- **Device side:** `os.dupterm_notify` stops at a Ctrl-C, so `bloq_link`
+  re-notifies until its buffer drains; otherwise "stop, then X" sent in one
+  write (the Reset button) leaves X stuck until the next write.
+- **Shared radio:** MicroPython has one BLE stack with one IRQ handler, and
+  registering services replaces all earlier ones — so a user program starting
+  its own Bluetooth would silently kill the link. Everything Bloq does over
+  Bluetooth goes through `src/runtime/bloq_ble.py`, which registers the link
+  and the Nordic UART service together and dispatches events. The IDE marks its
+  connection with an empty write; `bleuart.py` ignores that connection, so a
+  connected IDE neither counts as "Bluetooth connected" nor gets gamepad
+  traffic. Programs that use the `bluetooth` module directly (raw code) still
+  take the radio over.
+- Host-side tests: `scripts/blelink.test.py` (link + shared radio on a faked
+  stack), `scripts/bootlink.test.ts` (the `boot.py` edit, run under CPython).
+  On hardware (re-run after a MicroPython update or for a new board):
+  `scripts/blelink.hw.py` (board side over USB + Bluetooth from Python) and
+  `scripts/blelink.browser.py` (the app's own Web Bluetooth code in a launched
+  Chrome/Brave, driven over the DevTools protocol).
+
 ### Device-file sync (upload speed)
 
 Don't blast files every run. Required files = `board.libraries ∪
@@ -365,6 +422,10 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   board advertises `connection.replMode: "raw-paste"` (falls back to chunked raw
   REPL on older firmware). Lib sync is backed by a **device-side manifest**
   (`/lib/.bloq_manifest.json`, dest→hash) so change detection survives reconnects.
+- **Bluetooth upload link** (ESP32 family, opt-in per device): Run / Stop /
+  terminal over Web Bluetooth with the unchanged raw-REPL protocol, auto
+  reconnect across reboots, coexisting with programs' Bluetooth UART via the
+  shared `bloq_ble.py` manager (see §7).
 - PWA offline precache; installable with a custom app icon (start-block mark,
   maskable + Apple variants).
 - **Project library** (IndexedDB): open / duplicate / delete, per-project

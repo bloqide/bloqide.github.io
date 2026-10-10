@@ -531,6 +531,7 @@ function num(w: Blockly.Workspace, n: number) {
     "print((bleuart.controlPad.isButtonPressed(BleControlPad.ButtonUp) == True))",
   ]);
   console.assert(r.requiredLibraries.has("/lib/bleuart.py"), "bleuart.py required");
+  console.assert(r.requiredLibraries.has("/lib/bloq_ble.py"), "bloq_ble.py required");
 }
 
 // --- Test 24: if / else-if / else via the mutator ---

@@ -72,6 +72,9 @@ button {
 }
 button:hover { background: #45475a; }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Icon-only toolbar buttons: bigger glyph, tighter padding */
+#btn-connect-ble, #btn-terminal { padding: 0 8px; line-height: 1; display: inline-flex; align-items: center; }
+#menubar #btn-connect-ble i, #menubar #btn-terminal i { font-size: 20px; } /* beats the 12px menubar icon rule */
 .view-btn.active { background: var(--accent); color: #11111b; border-color: var(--accent); }
 
 /* Tab bar */
@@ -220,13 +223,16 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .term-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .term-name:hover { text-decoration: underline; }
 .term-head .spacer { flex: 1; }
-.term-stop, .term-clear, .term-reset, .term-wipe, .term-conn, .term-close {
+.term-stop, .term-clear, .term-reset, .term-wipe, .term-ble, .term-conn, .term-close {
   padding: 2px 6px; border: none; background: transparent; color: var(--muted); font-size: 12px;
 }
-.term-stop:hover, .term-clear:hover, .term-reset:hover, .term-conn:hover, .term-close:hover {
+.term-stop:hover, .term-clear:hover, .term-reset:hover, .term-ble:hover, .term-conn:hover, .term-close:hover {
   color: var(--fg); background: #45475a; border-radius: 4px;
 }
 .term-wipe:hover { color: #fff; background: #f38ba8; border-radius: 4px; }
+/* Bluetooth upload toggle: a filled pill while on, readable on a selected head too */
+.term-head .term-ble.on,
+.term-pane.selected .term-head .term-ble.on { color: #fff; background: #1e66f5; border-radius: 4px; }
 .term-head button:disabled { opacity: 0.35; cursor: not-allowed; background: transparent; }
 .term-pane.busy .term-head { cursor: progress; }
 .term-pane.selected .term-head button:hover { background: rgba(0, 0, 0, 0.2); }

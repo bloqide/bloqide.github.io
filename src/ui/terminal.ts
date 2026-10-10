@@ -31,6 +31,7 @@ export interface PaneHandlers {
   onClear: (id: string) => void; // clear the device's scrollback buffer
   onReset: (id: string) => void; // hardware-reset the board
   onWipe: (id: string) => void; // erase all files on the device
+  onBleLink: (id: string) => void; // toggle the Bluetooth upload link (USB devices)
   onClose: (id: string) => void; // remove the device
   onKey: (id: string, data: string) => void;
   onRename: (id: string, name: string) => void;
@@ -44,6 +45,7 @@ interface Pane {
   clearBtn: HTMLButtonElement;
   resetBtn: HTMLButtonElement;
   wipeBtn: HTMLButtonElement;
+  bleBtn: HTMLButtonElement;
   connBtn: HTMLButtonElement;
   closeBtn: HTMLButtonElement;
   term: Terminal;
@@ -92,13 +94,16 @@ export class TerminalPanel {
     wipeBtn.className = "term-wipe";
     wipeBtn.title = "Wipe device files";
     wipeBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+    const bleBtn = document.createElement("button");
+    bleBtn.className = "term-ble hidden";
+    bleBtn.innerHTML = '<i class="fa-brands fa-bluetooth-b"></i>';
     const connBtn = document.createElement("button");
     connBtn.className = "term-conn";
     const closeBtn = document.createElement("button");
     closeBtn.className = "term-close";
     closeBtn.title = "Close device";
     closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-    head.append(nameEl, spacer, stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn);
+    head.append(nameEl, spacer, stopBtn, clearBtn, resetBtn, wipeBtn, bleBtn, connBtn, closeBtn);
 
     const body = document.createElement("div");
     body.className = "term-body";
@@ -120,7 +125,7 @@ export class TerminalPanel {
 
     root.addEventListener("mousedown", () => this.h.onSelect(id));
     // Keep keyboard focus on the terminal: don't let header buttons grab it.
-    for (const b of [stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn]) {
+    for (const b of [stopBtn, clearBtn, resetBtn, wipeBtn, bleBtn, connBtn, closeBtn]) {
       b.tabIndex = -1;
       b.addEventListener("mousedown", (e) => e.preventDefault());
     }
@@ -145,6 +150,11 @@ export class TerminalPanel {
       this.h.onWipe(id);
       term.focus();
     });
+    bleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.h.onBleLink(id);
+      term.focus();
+    });
     connBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.h.onToggle(id);
@@ -160,7 +170,21 @@ export class TerminalPanel {
       if (name && name.trim()) this.h.onRename(id, name.trim());
     });
 
-    const pane: Pane = { id, root, nameEl, stopBtn, clearBtn, resetBtn, wipeBtn, connBtn, closeBtn, term, fit, grow: 1 };
+    const pane: Pane = {
+      id,
+      root,
+      nameEl,
+      stopBtn,
+      clearBtn,
+      resetBtn,
+      wipeBtn,
+      bleBtn,
+      connBtn,
+      closeBtn,
+      term,
+      fit,
+      grow: 1,
+    };
     this.panes.set(id, pane);
     this.setConnected(id, connected);
     this.refreshSplits();
@@ -245,6 +269,21 @@ export class TerminalPanel {
     p.connBtn.title = connected ? "Disconnect" : "Reconnect";
     p.root.classList.toggle("disconnected", !connected);
   }
+  /**
+   * Bluetooth upload link toggle: hidden when it doesn't apply (no Bluetooth on
+   * the board, or the device is already connected over Bluetooth).
+   */
+  setBleLink(id: string, state: "hidden" | "on" | "off"): void {
+    const p = this.panes.get(id);
+    if (!p) return;
+    p.bleBtn.classList.toggle("hidden", state === "hidden");
+    p.bleBtn.classList.toggle("on", state === "on");
+    p.bleBtn.title =
+      state === "on"
+        ? "Bluetooth upload: ON (kept through USB runs). Click to turn off"
+        : "Bluetooth upload: off. Click to let this board accept uploads over Bluetooth";
+  }
+
   highlight(id: string | null): void {
     for (const p of this.panes.values()) p.root.classList.toggle("selected", p.id === id);
   }
@@ -253,7 +292,7 @@ export class TerminalPanel {
   setBusy(id: string, busy: boolean): void {
     const p = this.panes.get(id);
     if (!p) return;
-    for (const b of [p.stopBtn, p.resetBtn, p.wipeBtn, p.connBtn, p.closeBtn]) b.disabled = busy;
+    for (const b of [p.stopBtn, p.resetBtn, p.wipeBtn, p.bleBtn, p.connBtn, p.closeBtn]) b.disabled = busy;
     p.root.classList.toggle("busy", busy);
   }
 

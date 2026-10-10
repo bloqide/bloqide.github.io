@@ -33,6 +33,14 @@ Then:
 Requires a **Chromium** browser (Web Serial). Firefox/Safari can edit but not
 connect.
 
+**Uploading over Bluetooth** (ESP32-family boards): once connected over USB,
+click the Bluetooth button on the device's terminal pane. The board reboots
+advertising as `Bloq-XXXX`; from then on the Bluetooth button next to
+**Connect** lists it, and Run / Stop / the terminal work wirelessly. The link
+stays off unless you turn it on: a Run over USB with the toggle off removes it.
+While it's on, anyone nearby can connect to the board's REPL, so turn it off
+when you don't need it.
+
 **Projects** save automatically to an in-browser library. Use the top menu:
 **New**, **Open…** (library + import `.bloq`), **Export** (download `.bloq`),
 and click the project name to rename. Your last project reopens on reload.
@@ -44,6 +52,11 @@ npm run dev         # dev server (HMR)
 npm run build       # typecheck + production build (PWA/offline)
 npm run typecheck   # tsc --noEmit
 npx tsx scripts/codegen.test.ts   # headless codegen checks (no browser)
+python3 scripts/blelink.test.py   # Bluetooth upload link, on a faked radio
+npx tsx scripts/bootlink.test.ts  # boot.py on/off edit for that link (needs python3)
+# With a Bluetooth board on USB (pip install mpremote bleak pyserial websockets):
+python3 scripts/blelink.hw.py --port /dev/cu.usbmodem101       # board side
+python3 scripts/blelink.browser.py --port /dev/cu.usbmodem101  # app in Chrome/Brave (needs npm run dev)
 ```
 
 ## Layout
@@ -60,8 +73,9 @@ plugins/<id>/      shared block bundles (TS modules)   — add blocks = drop a f
   examples/*.bloq  plugin-provided example projects
 src/
   core/            types, registry, blocks, codegen
-  runtime/         bloq.py (cooperative scheduler, shipped to device)
-  serial/          Web Serial + raw-REPL driver
+  runtime/         device-side Python: bloq.py (cooperative scheduler),
+                   bloq_ble.py + bloq_link.py (Bluetooth upload link)
+  serial/          Web Serial / Web Bluetooth + raw-REPL driver
   project/         .bloq model, IndexedDB store, import/export
   ui/              xterm terminal, dialogs (library, boards, examples)
   main.ts          app wiring

@@ -50,6 +50,9 @@ export class ConnectionPool {
   static get supported(): boolean {
     return SerialService.supported;
   }
+  static get bluetoothSupported(): boolean {
+    return SerialService.bluetoothSupported;
+  }
 
   list(): PoolEntry[] {
     return this.entries;
@@ -95,17 +98,25 @@ export class ConnectionPool {
     }
   }
 
-  /** Open a brand-new device (always prompts). Returns its id, or null if cancelled. */
-  async openNew(board: Board): Promise<string | null> {
+  /**
+   * Open a brand-new device (always prompts) over USB serial or the Bluetooth
+   * upload link. Returns its id, or null if cancelled.
+   */
+  async openNew(board: Board, via: "usb" | "bluetooth" = "usb"): Promise<string | null> {
     const id = crypto.randomUUID();
     const service = new SerialService({
       onData: (t) => this.cb.onData(id, t),
       onStatus: () => this.cb.onStatus(),
     });
     try {
-      await service.attach(board);
+      if (via === "bluetooth") await service.attachBluetooth(board);
+      else await service.attach(board);
     } catch (err) {
-      if ((err as Error).name === "NotFoundError") return null; // picker cancelled
+      // Both pickers report a cancel as NotFoundError, but Web Bluetooth also
+      // uses it for real failures (no adapter, no OS permission, API disabled),
+      // so only stay silent on an actual cancel.
+      const e = err as Error;
+      if (e.name === "NotFoundError" && /cancel|no port selected/i.test(e.message)) return null;
       throw err;
     }
     this.entries.push({ id, service, index: ++this.counter });

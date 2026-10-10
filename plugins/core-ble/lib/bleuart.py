@@ -42,27 +42,7 @@
 import bluetooth
 from micropython import const
 import struct
-
-_IRQ_CENTRAL_CONNECT = const(1)
-_IRQ_CENTRAL_DISCONNECT = const(2)
-_IRQ_GATTS_WRITE = const(3)
-
-_FLAG_WRITE = const(0x0008)
-_FLAG_NOTIFY = const(0x0010)
-
-_UART_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-_UART_TX = (
-    bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E"),
-    _FLAG_NOTIFY,
-)
-_UART_RX = (
-    bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"),
-    _FLAG_WRITE,
-)
-_UART_SERVICE = (
-    _UART_UUID,
-    (_UART_TX, _UART_RX),
-)
+import bloq_ble
 
 # org.bluetooth.characteristic.gap.appearance.xml
 _ADV_APPEARANCE_GENERIC_COMPUTER = const(128)
@@ -149,57 +129,33 @@ def decode_services(payload):
 
 
 class BleUart:
-    def __init__(self, ble, name="EspBotUart", rxbuf=32):
-        self._ble = ble
-        self._ble.active(True)
-        self._ble.irq(self._irq)
-        ((self._tx_handle, self._rx_handle),) = self._ble.gatts_register_services((_UART_SERVICE,))
+    # Runs on the shared bloq_ble manager rather than owning the radio, so it
+    # coexists with the IDE's Bluetooth upload link. Connections the IDE owns are
+    # invisible here: they don't count as connected and get no notifications.
+    def __init__(self, name="EspBotUart", rxbuf=32):
+        self._m = bloq_ble.start()
+        self._ble = self._m.ble
+        self._tx_handle, self._rx_handle = self._m.nus_handles
         # Increase the size of the rx buffer and enable append mode.
         self._ble.gatts_set_buffer(self._rx_handle, rxbuf, True)
-        self._connections = set()
         self._rx_buffer = bytearray()
         self._rxHandler = None
         self._cntHandler = None
-        # Optionally add services=[_UART_UUID], but this is likely to make the payload too large.
-        self._payload = advertising_payload(name=name, appearance=_ADV_APPEARANCE_GENERIC_COMPUTER)
-        self._advertise()
+        self._m.on_write[self._rx_handle] = self._on_write
+        self._m.on_conn["bleuart"] = self._on_conn
+        self._m.set_name(name)  # (re)advertises under this name
 
-    def _irq(self, event, data):
-        try:
-            # Track connections so we can send notifications.
-            if event == _IRQ_CENTRAL_CONNECT:
-                #print("BLE connection")
-                conn_handle, _, _ = data
-                self._connections.add(conn_handle)
-                if self._cntHandler:
-                    self._cntHandler(True)
+    def _on_conn(self, conn_handle, connected):
+        if conn_handle in self._m.link_conns:
+            return  # the IDE, not a user central
+        if self._cntHandler:
+            self._cntHandler(connected)
 
-            elif event == _IRQ_CENTRAL_DISCONNECT:
-                #print("BLE disconnection")
-                conn_handle, _, _ = data
-                if conn_handle in self._connections:
-                    self._connections.remove(conn_handle)
-                # Start advertising again to allow a new connection.
-                self._advertise()
-                if self._cntHandler:
-                    self._cntHandler(False)
-
-            elif event == _IRQ_GATTS_WRITE:
-                conn_handle, value_handle = data
-                if conn_handle in self._connections and value_handle == self._rx_handle:
-                    self._rx_buffer = self._ble.gatts_read(self._rx_handle)
-                    #self._rx_buffer += self._ble.gatts_read(self._rx_handle)
-                    if self._rxHandler:
-                        self._rxHandler(self._rx_buffer)
-        except:
-            pass
-
-    def _advertise(self, interval_us=500000):
-        try:
-            self._ble.gap_advertise(interval_us, adv_data=self._payload)
-        except:
-            #print("BLE advertise exception")
-            pass
+    def _on_write(self, conn_handle, value_handle):
+        self._rx_buffer = self._ble.gatts_read(value_handle)
+        #self._rx_buffer += self._ble.gatts_read(value_handle)
+        if self._rxHandler:
+            self._rxHandler(self._rx_buffer)
 
     def callOnRx(self, handler):
         self._rxHandler = handler
@@ -211,7 +167,7 @@ class BleUart:
         return len(self._rx_buffer) > 0
 
     def isConnected(self):
-        return len(self._connections) > 0
+        return len(self._m.user_conns()) > 0
 
     def clearData(self):
         self._rx_buffer = bytearray()
@@ -226,16 +182,16 @@ class BleUart:
 
     def write(self, data):
         try:
-            for conn_handle in self._connections:
+            for conn_handle in self._m.user_conns():
                 self._ble.gatts_notify(conn_handle, self._tx_handle, data)
         except:
             print("BLE write exception")
             pass
 
     def close(self):
-        for conn_handle in self._connections:
+        # Only drop user centrals; the IDE's upload link stays connected.
+        for conn_handle in self._m.user_conns():
             self._ble.gap_disconnect(conn_handle)
-        self._connections.clear()
 
 
 class BleControlPad:
@@ -277,8 +233,7 @@ class BleControlPad:
 
     def begin(self, name="EspBot"):
         print("Using BLE name: " + name)
-        self._ble = bluetooth.BLE()
-        self._bleuart = BleUart(self._ble, name, 8)
+        self._bleuart = BleUart(name, 8)
         self._bleuart.callOnRx(handler=self._process)
         self._bleuart.callOnConnectChanged(handler=self._processConnectChange)
         self._btn_flags = 0

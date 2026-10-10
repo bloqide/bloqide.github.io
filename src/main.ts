@@ -46,6 +46,8 @@ const libModules = import.meta.glob<string>(
 const libByDest = new Map<string, string>(
   Object.entries(libModules).map(([path, src]) => [`/lib/${path.split("/").pop()}`, src])
 );
+// What boot.py needs to start the Bluetooth upload link (see SerialService.setBootLink).
+const LINK_LIBS = ["/lib/bloq_ble.py", "/lib/bloq_link.py"];
 
 const DEFAULT_BOARD = "esp32-c3";
 
@@ -536,6 +538,8 @@ splitResizer.addEventListener("mousedown", (e) => {
 // ---- Terminal + connection pool (shared across projects) ----
 const drawer = document.getElementById("terminal-drawer")!;
 const connectBtn = document.getElementById("btn-connect")!;
+const connectBleBtn = document.getElementById("btn-connect-ble")!;
+connectBleBtn.classList.toggle("hidden", !ConnectionPool.bluetoothSupported);
 
 // Project -> last device id it ran/saved on (session only; ports aren't
 // re-grantable across reloads, so there's nothing to persist).
@@ -559,6 +563,7 @@ const panel = new TerminalPanel(document.getElementById("term-container")!, {
     if (s?.connected) void s.reset();
   },
   onWipe: (id) => void wipeDevice(id),
+  onBleLink: (id) => void toggleBleLink(id),
   onClose: (id) => void pool.remove(id),
   onKey: (id, data) => void pool.get(id)?.sendKey(data),
   onRename: (id, name) => pool.rename(id, name),
@@ -573,6 +578,8 @@ function syncPool(): void {
       panel.setLabel(e.id, pool.labelFor(e.id));
       panel.setConnected(e.id, e.service.connected);
     }
+    const ble = e.service.bluetooth || !boardHasBle() ? "hidden" : e.service.keepBleLink ? "on" : "off";
+    panel.setBleLink(e.id, ble);
   }
   panel.retain(pool.list().map((e) => e.id));
   panel.highlight(pool.highlighted);
@@ -586,7 +593,11 @@ function syncPool(): void {
 function activateConnection(): void {
   const linked = projectLink.get(current.id);
   if (linked && pool.has(linked)) pool.highlight(linked);
-  else syncPool();
+  syncPool(); // also refreshes board-dependent pane controls
+}
+
+function boardHasBle(): boolean {
+  return board.capabilities.includes("ble");
 }
 
 async function toggleDevice(id: string): Promise<void> {
@@ -614,15 +625,17 @@ document.getElementById("btn-terminal")!.addEventListener("click", () =>
   drawer.classList.contains("hidden") ? openTerminal() : closeTerminal()
 );
 
-// The top Connect button always opens a NEW device.
-connectBtn.addEventListener("click", async () => {
+// The top Connect buttons always open a NEW device (USB serial / Bluetooth link).
+async function connectNew(via: "usb" | "bluetooth"): Promise<void> {
   try {
-    const id = await pool.openNew(board);
+    const id = await pool.openNew(board, via);
     if (id) openTerminal();
   } catch (err) {
     alert(`Could not open device: ${(err as Error).message}`);
   }
-});
+}
+connectBtn.addEventListener("click", () => void connectNew("usb"));
+connectBleBtn.addEventListener("click", () => void connectNew("bluetooth"));
 
 // Device files this program needs — the libraries codegen/block generators
 // declared (scheduler runtime, motor/BLE drivers, …), resolved to their source.
@@ -633,6 +646,19 @@ function requiredFiles(): { dest: string; content: string }[] {
     if (content) files.push({ dest, content });
   }
   return files;
+}
+
+function linkFiles(): { dest: string; content: string }[] {
+  return LINK_LIBS.map((dest) => ({ dest, content: libByDest.get(dest)! }));
+}
+
+// Should boot.py start the Bluetooth upload link after this Run? Always when
+// running over Bluetooth (removing it would cut the link off); over USB only
+// while the device's toggle is on, so the radio stays off unless asked for.
+// null = leave boot.py alone (the board has no Bluetooth).
+function bootLinkFor(svc: SerialService): boolean | null {
+  if (svc.bluetooth) return true;
+  return boardHasBle() ? svc.keepBleLink : null;
 }
 
 // While a flash write is in progress, disable controls that could interrupt it
@@ -655,7 +681,9 @@ async function sendToDevice(action: (svc: SerialService) => Promise<void>): Prom
   projectLink.set(current.id, id); // remember for this project's next tab visit
   setBusy(id, true);
   try {
-    await svc.syncLibraries(requiredFiles());
+    const link = bootLinkFor(svc);
+    await svc.syncLibraries(link ? [...requiredFiles(), ...linkFiles()] : requiredFiles());
+    if (link !== null) await svc.setBootLink(link);
     await action(svc);
   } catch (err) {
     panel.writeTo(id, `\r\n[error] ${(err as Error).message}\r\n`);
@@ -667,6 +695,26 @@ async function sendToDevice(action: (svc: SerialService) => Promise<void>): Prom
 document.getElementById("btn-run")!.addEventListener("click", () =>
   void sendToDevice((svc) => svc.run(currentCode()))
 );
+
+// Turn the Bluetooth upload link on/off for a USB device: install or strip the
+// boot.py block, then soft-reboot so it takes effect. While on, USB Runs keep it.
+async function toggleBleLink(id: string): Promise<void> {
+  const svc = pool.get(id);
+  if (!svc?.connected || svc.bluetooth) return;
+  const on = !svc.keepBleLink;
+  setBusy(id, true);
+  try {
+    if (on) await svc.syncLibraries(linkFiles());
+    await svc.setBootLink(on);
+    svc.keepBleLink = on;
+    panel.writeTo(id, `\r\n[bluetooth] upload link ${on ? "on" : "off"}, rebooting…\r\n`);
+    await svc.softReboot();
+  } catch (err) {
+    panel.writeTo(id, `\r\n[error] ${(err as Error).message}\r\n`);
+  } finally {
+    setBusy(id, false);
+  }
+}
 
 // Erase every file on a device (destructive — confirm first). Busy-guarded like a
 // flash write so nothing can interrupt the deletions mid-way.
@@ -930,6 +978,7 @@ const boardPicker = initBoardPicker({
     useBoard(id);
     current.board = board.id;
     regenerate(); // recompute for the new board + autosave
+    syncPool(); // device controls that depend on the board (Bluetooth toggle)
   },
 });
 document.getElementById("board-label")!.addEventListener("click", () => boardPicker.open());
