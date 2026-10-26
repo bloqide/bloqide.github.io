@@ -409,6 +409,12 @@ function raiseFloatingValueBlocks(): void {
   }
 }
 
+// The user's first own edit of a project that loaded incomplete lets autosave
+// save it again. Events from the load itself never record undo, so they don't count.
+workspace.addChangeListener((e: Blockly.Events.Abstract) => {
+  if (loadFailedId === current.id && !e.isUiEvent && e.recordUndo) loadFailedId = null;
+});
+
 workspace.addChangeListener((e: Blockly.Events.Abstract) => {
   if (e.type === Blockly.Events.SELECTED) {
     highlightLinesFor((e as Blockly.Events.Selected).newElementId ?? null);
@@ -758,6 +764,10 @@ function currentCode(): string {
 const LAST_OPEN_KEY = "bloq:lastOpen";
 let current: ProjectRecord = newRecord("Untitled", board.id);
 let loading = false; // suppress autosave while applying a loaded project
+// A project whose blocks failed to load opens incomplete. Autosave would then
+// replace the stored original with what did load, so it's held back on that
+// project until the user changes something themselves.
+let loadFailedId: string | null = null;
 
 // Per-tab undo/redo history, kept in memory so it survives tab switches (the
 // one workspace is cleared + reloaded on switch). Not persisted: events aren't
@@ -782,7 +792,7 @@ function isDraft(): boolean {
 
 // autosave() is called by regenerate() on every workspace change, and on flush.
 function autosave(): void {
-  if (loading) return;
+  if (loading || current.id === loadFailedId) return;
   current.blocks = Blockly.serialization.workspaces.save(workspace);
   current.board = board.id;
   current.detached = detached;
@@ -816,12 +826,24 @@ function applyProject(rec: ProjectRecord): void {
   const prevRecordUndo = Blockly.Events.getRecordUndo();
   Blockly.Events.setRecordUndo(false);
   workspace.clear();
+  loadFailedId = null;
   try {
     Blockly.serialization.workspaces.load(rec.blocks as object, workspace);
-  } catch {
+  } catch (err) {
     // Corrupt/legacy block data: Blockly can bail mid-load with an event group
     // left open — reset it (recordUndo is restored just below regardless).
     Blockly.Events.setGroup(false);
+    loadFailedId = rec.id;
+    console.error(`Could not load the blocks of "${rec.name}"`, err);
+    // After this call returns, so the incomplete project shows behind the dialog.
+    setTimeout(() =>
+      alert(
+        `Some blocks of "${rec.name}" could not be loaded, so it opened incomplete.\n` +
+          `(${(err as Error).message})\n\n` +
+          "The saved project is left as it was until you change something here. " +
+          "To keep a copy of the original, use Export before editing."
+      )
+    );
   }
   Blockly.Events.setRecordUndo(prevRecordUndo);
   // Replace the live undo/redo stacks with this tab's saved history (empty for a
