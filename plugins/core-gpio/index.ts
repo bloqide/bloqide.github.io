@@ -18,6 +18,7 @@
 
 import type { BloqPlugin, GenContext } from "../../src/core/types";
 import type * as Blockly from "blockly";
+import { onboardRgbLed } from "../core-neopixel/index";
 
 // GPIO blocks. Pin dropdowns are populated from the active board (the registry
 // resolves the $BOARD_DIGITAL_PINS token), so one block definition adapts to any
@@ -48,6 +49,14 @@ function ledPin(ctx: GenContext): string {
   const led = ctx.board.pins.aliases["LED"];
   return led !== undefined ? String(led) : "8";
 }
+
+// A board with no plain LED but an onboard RGB LED (StepBot) lights that one
+// in white instead, so Blink and the LED presets work there too.
+function rgbLed(ctx: GenContext): string | null {
+  return ctx.board.pins.aliases["LED"] === undefined ? onboardRgbLed(ctx) : null;
+}
+const WHITE = "(255, 255, 255)";
+const OFF = "(0, 0, 0)";
 
 export const plugin: BloqPlugin = {
   id: "core-gpio",
@@ -220,10 +229,23 @@ export const plugin: BloqPlugin = {
       ctx.line(`Pin(${pin}, Pin.OUT).value(${ctx.value(block, "VALUE", "0")})`, block.id);
     },
     gpio_set_led: (block: Blockly.Block, ctx: GenContext) => {
+      const rgb = rgbLed(ctx);
+      if (rgb) {
+        ctx.line(`${rgb}.fill(${block.getFieldValue("VAL") === "1" ? WHITE : OFF})`, block.id);
+        ctx.line(`${rgb}.write()`, block.id);
+        return;
+      }
       const v = reservePin(ctx, ledPin(ctx), "OUT");
       ctx.line(`${v}.value(${block.getFieldValue("VAL")})`, block.id);
     },
     gpio_toggle_led: (block: Blockly.Block, ctx: GenContext) => {
+      const rgb = rgbLed(ctx);
+      if (rgb) {
+        // Any colour counts as on, so this also switches off a coloured LED.
+        ctx.line(`${rgb}.fill(${OFF} if any(${rgb}[0]) else ${WHITE})`, block.id);
+        ctx.line(`${rgb}.write()`, block.id);
+        return;
+      }
       const v = reservePin(ctx, ledPin(ctx), "OUT");
       ctx.line(`${v}.value(not ${v}.value())`, block.id);
     },

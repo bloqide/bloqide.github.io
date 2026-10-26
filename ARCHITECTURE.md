@@ -81,7 +81,7 @@ template replacements — alongside the hardware facts.
 | `pins.aliases` | dropdowns | friendly names (`LED`) → pin expressions |
 | `buses.*` | bus blocks | default sda/scl/freq so I²C works with no config |
 | `constraints.*` | field validators | reject out-of-range ADC/PWM/voltage |
-| `onboard` | toolbox | auto-surface convenience blocks (onboard LED) |
+| `onboard` | toolbox | auto-surface convenience blocks (onboard LED; a board with no plain LED but an onboard `neopixel` gets it lit in white) |
 | `capabilities` | registry + toolbox | drives which plugins load (below); a block `requires` a capability, hidden otherwise |
 | `pluginsExclude` | registry | opt a board out of a plugin its capabilities would otherwise activate |
 | `overrides` | CodeGen | per-block template per dialect (the escape hatch) |
@@ -362,8 +362,10 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 
 **Working & verified (typecheck + build + headless codegen tests):**
 
-- **Boards** (self-contained in `boards/<id>/`): ESP32-C3, ESP32, RP2040, and a
-  custom EspBot (motors + BLE). Glob-loaded registry over `boards/*/*.json`,
+- **Boards** (self-contained in `boards/<id>/`): ESP32-C3, ESP32, RP2040, and
+  two custom robots: EspBot (DC motors + BLE) and StepBot (two steppers run by a
+  CH32V003 co-processor over OneWire on IO2, driven by the shipped `stepbot.py`
+  in mm / degrees; plus a WS2812 RGB LED on IO10). Glob-loaded registry over `boards/*/*.json`,
   `plugins/*` and `boards/*/plugins/*`.
 - **Block library** — `core-control` (hats, loops, waits, if / if-else-if
   mutator, wait-until), `core-gpio`, `core-logic`, `core-math` (arithmetic +
@@ -406,7 +408,7 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   `def` can't drive the scheduler).
 - CodeGen: simple ↔ scheduler auto-mode, header/pin-setup dedup, bidirectional
   source map, setup-hat globals, user-function defs, unknown-block detection.
-  (`scripts/codegen.test.ts` — 44 checks pass.)
+  (`scripts/codegen.test.ts` — 63 checks pass.)
 - Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
 - Blockly workspace (custom zelos renderer), toolbox from plugins with a
   drag-out-hides-flyout tweak and a fixed-scale flyout (doesn't grow with zoom),

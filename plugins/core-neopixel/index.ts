@@ -33,6 +33,41 @@ function stripVar(ctx: GenContext, pin: string): string {
 
 const pinField = { type: "field_dropdown", name: "PIN", options: "$BOARD_OUTPUT_PINS" };
 const NUM = (n: number) => ({ shadow: { type: "math_number", fields: { NUM: n } } });
+/** The board's onboard RGB LED (a single WS2812 listed in `onboard`) as a
+ *  one-pixel strip created on first mention, or null if the board has none.
+ *  Shared by every block that lights it, so they all drive one object. */
+export function onboardRgbLed(ctx: GenContext): string | null {
+  const led = ctx.board.onboard?.find((o) => o.type === "neopixel");
+  if (!led) return null;
+  const v = ctx.reserveVariable("rgb_led");
+  ctx.ensureImport("from machine import Pin");
+  ctx.ensureImport("from neopixel import NeoPixel");
+  ctx.addSetup(`${v} = NeoPixel(Pin(${led.pin}), 1)`);
+  return v;
+}
+
+// Picker palette: fully saturated colours (pastels just look white on an LED).
+const PALETTE: [string, string][] = [
+  ["#ff0000", "red"],
+  ["#ff8000", "orange"],
+  ["#ffff00", "yellow"],
+  ["#80ff00", "lime"],
+  ["#00ff00", "green"],
+  ["#00ffff", "cyan"],
+  ["#0000ff", "blue"],
+  ["#8000ff", "purple"],
+  ["#ff00ff", "magenta"],
+  ["#ff0080", "pink"],
+  ["#ffffff", "white"],
+  ["#000000", "off"],
+];
+
+/** "#rrggbb" -> "(r, g, b)", so the code shows plain numbers. */
+function hexToTuple(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
+
 const COLOR_SHADOW = {
   shadow: {
     type: "neopixel_colour",
@@ -76,6 +111,26 @@ export const plugin: BloqPlugin = {
         tooltip: "A colour from red/green/blue components (0–255).",
       },
       toolbox: { inputs: { R: NUM(255), G: NUM(0), B: NUM(0) } },
+    },
+    neopixel_colour_pick: {
+      kind: "value",
+      json: {
+        type: "neopixel_colour_pick",
+        message0: "%1",
+        args0: [
+          {
+            type: "field_colour",
+            name: "COLOUR",
+            colour: "#ff0000",
+            colourOptions: PALETTE.map(([hex]) => hex),
+            colourTitles: PALETTE.map(([, title]) => title),
+            columns: 6,
+          },
+        ],
+        output: null,
+        colour: COLOUR,
+        tooltip: "A colour from the palette.",
+      },
     },
     neopixel_set: {
       kind: "statement",
@@ -133,6 +188,7 @@ export const plugin: BloqPlugin = {
     },
     neopixel_colour: (block: Blockly.Block, ctx: GenContext) =>
       `(${ctx.value(block, "R", "0")}, ${ctx.value(block, "G", "0")}, ${ctx.value(block, "B", "0")})`,
+    neopixel_colour_pick: (block: Blockly.Block) => hexToTuple(block.getFieldValue("COLOUR")),
     neopixel_set: (block: Blockly.Block, ctx: GenContext) => {
       const v = stripVar(ctx, block.getFieldValue("PIN"));
       ctx.line(`${v}[${ctx.value(block, "INDEX", "0")}] = ${ctx.value(block, "COLOR", "(0, 0, 0)")}`, block.id);

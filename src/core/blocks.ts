@@ -17,8 +17,13 @@
  */
 
 import * as Blockly from "blockly";
+// The colour field left Blockly core in v11. Imported from source, not the
+// package entry: that UMD bundle also pulls in every Blockly code generator.
+import { registerFieldColour } from "@blockly/field-colour/src/field_colour";
 import type { Board, BloqPlugin } from "./types";
 import { activePlugins } from "./registry";
+
+registerFieldColour(); // "field_colour" in block JSON (colour pickers)
 
 // Registers Blockly block definitions for a board's active plugins and builds
 // the toolbox. Dynamic tokens in field options (e.g. "$BOARD_DIGITAL_PINS") are

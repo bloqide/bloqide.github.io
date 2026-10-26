@@ -35,7 +35,13 @@ import { plugin as sensors } from "../plugins/core-sensors/index";
 import { plugin as stepper } from "../plugins/core-stepper/index";
 import { plugin as servo } from "../plugins/core-servo/index";
 import { plugin as functions } from "../plugins/core-functions/index";
+import { plugin as stepbotMotors } from "../boards/stepbot/plugins/motors/index";
+import { plugin as stepbotLed } from "../boards/stepbot/plugins/led/index";
+import { registerFieldColour } from "@blockly/field-colour/src/field_colour";
 import board from "../boards/esp32-c3/esp32-c3.json";
+import stepbotBoard from "../boards/stepbot/stepbot.json";
+
+registerFieldColour(); // the colour picker block uses field_colour
 
 // Register block definitions (resolve the pin-dropdown tokens to real options).
 const pinTokens: Record<string, number[]> = {
@@ -50,7 +56,7 @@ const gens = new Map<string, BlockGenerator | ValueGenerator>();
 const noneTokens: Record<string, number[]> = {
   $BOARD_OUTPUT_PINS_OR_NONE: (board as any).pins.digital,
 };
-for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper, servo]) {
+for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper, servo, stepbotMotors, stepbotLed]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     if (!def.builtin) {
       // builtin blocks (Blockly's procedure call/if-return) keep their own defs
@@ -1178,6 +1184,198 @@ const fnGen = functions.generators as Record<string, any>;
   connectChain(hat, on, off);
   const code = cg().generate(w).code;
   expect("set onboard LED on/off", code, ["pin_8_out = Pin(8, Pin.OUT)", "pin_8_out.value(1)", "pin_8_out.value(0)"]);
+}
+
+// --- Test 43: StepBot moves, SIMPLE mode (the driver's blocking wait) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const fwd = w.newBlock("stepbot_move");
+  plug(fwd, "DIST", num(w, 200));
+  const back = w.newBlock("stepbot_move");
+  back.setFieldValue("-1", "DIR");
+  back.setFieldValue("0", "WAIT");
+  plug(back, "DIST", num(w, 100));
+  const wait = w.newBlock("stepbot_wait");
+  const turn = w.newBlock("stepbot_turn");
+  turn.setFieldValue("turn_right", "DIR");
+  plug(turn, "ANGLE", num(w, 90));
+  const arc = w.newBlock("stepbot_arc");
+  arc.setFieldValue("-1", "SIDE");
+  plug(arc, "RADIUS", num(w, 150));
+  plug(arc, "ANGLE", num(w, 45));
+  connectChain(hat, fwd, back, wait, turn, arc);
+
+  const r = cg().generate(w);
+  expect(
+    "stepbot: moves in simple mode",
+    r.code,
+    [
+      "import stepbot",
+      "stepbot.motors.move(200)",
+      "stepbot.motors.move(-100, wait=False)",
+      "stepbot.motors.wait()",
+      "stepbot.motors.turn_right(90)",
+      "stepbot.motors.arc(-150, 45)",
+    ],
+    ["from stepbot import StepBot", "sched", "yield"]
+  );
+  if (!r.requiredLibraries.has("/lib/stepbot.py") || r.schedulerMode) {
+    failures++;
+    console.log("✗ stepbot: driver must ship, and moves must not force scheduler mode");
+  }
+}
+
+// --- Test 44: StepBot "and wait" yields in SCHEDULER mode ---
+{
+  const w = ws();
+  for (const _ of [0, 1]) {
+    const hat = w.newBlock("when_started");
+    const mv = w.newBlock("stepbot_move");
+    plug(mv, "DIST", num(w, 200));
+    connectChain(hat, mv);
+  }
+  const r = cg().generate(w);
+  expect(
+    "stepbot: and wait yields in scheduler mode",
+    r.code,
+    ["stepbot.motors.move(200, wait=False)", "while stepbot.motors.busy():", "yield from sched.sleep_ms(10)"],
+    ["stepbot.motors.move(200)\n", "stepbot.motors.wait()"]
+  );
+}
+
+// --- Test 45: StepBot setup is hoisted; constants only when a motor is named ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const stop = w.newBlock("stepbot_stop");
+  const run = w.newBlock("stepbot_run");
+  run.setFieldValue("StepBot.MotorLeft", "MOTOR");
+  plug(run, "SPEED", num(w, -50));
+  const brake = w.newBlock("stepbot_stop");
+  brake.setFieldValue("StepBot.MotorRight", "MOTOR");
+  brake.setFieldValue("brake", "HOW");
+  const setup = w.newBlock("stepbot_setup");
+  setup.setFieldValue(60, "DIAMETER");
+  setup.setFieldValue("32", "MICROSTEPS");
+  connectChain(hat, stop, run, brake, setup);
+
+  const code = cg().generate(w).code;
+  expect("stepbot: stop/run/setup", code, [
+    "from stepbot import StepBot",
+    "stepbot.motors.set_wheel(60, 120)",
+    "stepbot.motors.set_microsteps(32)",
+    "stepbot.motors.stop()",
+    "stepbot.motors.run(StepBot.MotorLeft, -50)",
+    "stepbot.motors.brake(StepBot.MotorRight)",
+  ]);
+  if (code.indexOf("set_wheel") > code.indexOf("stop()")) {
+    failures++;
+    console.log("✗ stepbot: setup must be hoisted above the program");
+  }
+}
+
+// --- Test 46: StepBot RGB LED (picker + rgb) on the board's onboard neopixel pin ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const pickSet = w.newBlock("stepbot_led_set");
+  const pick = w.newBlock("neopixel_colour_pick");
+  pick.setFieldValue("#ff8000", "COLOUR");
+  pickSet.getInput("COLOR")!.connection!.connect(pick.outputConnection!);
+  plug(pickSet, "BRIGHTNESS", num(w, 20));
+  const rgbSet = w.newBlock("stepbot_led_set");
+  const rgb = w.newBlock("neopixel_colour");
+  plug(rgb, "R", num(w, 0));
+  plug(rgb, "G", num(w, 10));
+  plug(rgb, "B", num(w, 255));
+  rgbSet.getInput("COLOR")!.connection!.connect(rgb.outputConnection!);
+  const off = w.newBlock("stepbot_led_off");
+  connectChain(hat, pickSet, rgbSet, off);
+
+  const code = new CodeGen(stepbotBoard as any, { defs, gens }).generate(w).code;
+  expect("stepbot: RGB LED", code, [
+    "from neopixel import NeoPixel",
+    "rgb_led = NeoPixel(Pin(10), 1)",
+    "def dimmed(colour, percent):",
+    "return tuple(max(0, min(255, round(c * percent / 100))) for c in colour)",
+    "rgb_led.fill(dimmed((255, 128, 0), 20))",
+    "rgb_led.fill((0, 10, 255))",
+    "rgb_led.fill((0, 0, 0))",
+    "rgb_led.write()",
+  ]);
+}
+
+// --- Test 47: StepBot plugin set (owned plugins in, generic stepper out) ---
+{
+  const all = [control, gpio, neopixel, stepper, servo, motors, stepbotMotors, stepbotLed];
+  const owner = new Map<string, string | null>([
+    [motors.id, "espbot2-ble"],
+    [stepbotMotors.id, "stepbot"],
+    [stepbotLed.id, "stepbot"],
+  ]);
+  const ids = selectPlugins(stepbotBoard as any, all, (id) => owner.get(id) ?? null).map((p) => p.id);
+  const pass =
+    ids.includes("stepbot-motors") &&
+    ids.includes("stepbot-led") &&
+    ids.includes("core-servo") &&
+    ids.includes("core-neopixel") &&
+    !ids.includes("core-stepper") &&
+    !ids.includes("espbot-motors");
+  console.log(pass ? "✓ stepbot: plugin set" : `✗ stepbot: plugin set ${ids.join(", ")}`);
+  if (!pass) failures++;
+}
+
+// --- Test 48: with no plain LED, the onboard LED blocks light StepBot's RGB LED ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const on = w.newBlock("gpio_set_led");
+  on.setFieldValue("1", "VAL");
+  const toggle = w.newBlock("gpio_toggle_led");
+  const red = w.newBlock("stepbot_led_set");
+  const pick = w.newBlock("neopixel_colour_pick");
+  red.getInput("COLOR")!.connection!.connect(pick.outputConnection!);
+  connectChain(hat, on, toggle, red);
+  const code = new CodeGen(stepbotBoard as any, { defs, gens }).generate(w).code;
+  expect(
+    "stepbot: onboard LED blocks drive the RGB LED",
+    code,
+    [
+      "rgb_led = NeoPixel(Pin(10), 1)",
+      "rgb_led.fill((255, 255, 255))",
+      "rgb_led.fill((0, 0, 0) if any(rgb_led[0]) else (255, 255, 255))",
+      "rgb_led.fill((255, 0, 0))",
+    ],
+    ["pin_8_out", "Pin(8", "rgb_led_2"]
+  );
+}
+
+// --- Test 49: StepBot single-wheel moves, in mm or degrees ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const mk = (motor: string, unit: string, n: number) => {
+    const b = w.newBlock("stepbot_wheel_move");
+    b.setFieldValue(motor, "MOTOR");
+    b.setFieldValue(unit, "UNIT");
+    plug(b, "AMOUNT", num(w, n));
+    return b;
+  };
+  connectChain(
+    hat,
+    mk("StepBot.MotorLeft", "mm", 50),
+    mk("StepBot.MotorRight", "mm", -30),
+    mk("StepBot.MotorLeftAndRight", "mm", 80),
+    mk("StepBot.MotorRight", "deg", 360)
+  );
+  const code = cg().generate(w).code;
+  expect("stepbot: move one wheel", code, [
+    "stepbot.motors.move_motors(50, 0)",
+    "stepbot.motors.move_motors(0, -30)",
+    "stepbot.motors.move(80)",
+    "stepbot.motors.rotate(StepBot.MotorRight, 360)",
+  ]);
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
