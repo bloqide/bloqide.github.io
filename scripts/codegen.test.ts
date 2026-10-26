@@ -19,6 +19,7 @@
 // Headless codegen check — proves simple vs scheduler mode without a browser.
 // Run: npx tsx scripts/codegen.test.ts
 import * as Blockly from "blockly";
+import { readdirSync, readFileSync } from "node:fs";
 import { CodeGen } from "../src/core/codegen";
 import { selectPlugins } from "../src/core/registry";
 import type { BlockDef, BlockGenerator, ValueGenerator } from "../src/core/types";
@@ -1376,6 +1377,23 @@ const fnGen = functions.generators as Record<string, any>;
     "stepbot.motors.move(80)",
     "stepbot.motors.rotate(StepBot.MotorRight, 360)",
   ]);
+}
+
+// --- Test 50: every example file is a workspace state the app can load ---
+// (The Examples dialog passes `file.blocks` straight to workspaces.load, which
+// wants { blocks: { languageVersion, blocks: [...] } } — the bare inner section
+// fails silently and opens an empty project.)
+{
+  const bad: string[] = [];
+  for (const root of ["plugins", "boards"]) {
+    for (const entry of readdirSync(root, { recursive: true }) as string[]) {
+      if (!entry.endsWith(".bloq")) continue;
+      const file = JSON.parse(readFileSync(`${root}/${entry}`, "utf8"));
+      if (!Array.isArray(file.blocks?.blocks?.blocks)) bad.push(`${root}/${entry}`);
+    }
+  }
+  console.log(bad.length ? `✗ example files not loadable: ${bad.join(", ")}` : "✓ example files are loadable workspace states");
+  if (bad.length) failures++;
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
