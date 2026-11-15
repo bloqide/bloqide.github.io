@@ -1458,5 +1458,48 @@ const fnGen = functions.generators as Record<string, any>;
   );
 }
 
+// --- Test 53: StepBot timed moves pass duration= in ms ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const fwd = w.newBlock("stepbot_move_timed");
+  plug(fwd, "DIST", num(w, 100));
+  plug(fwd, "SECS", num(w, 2.5));
+  const back = w.newBlock("stepbot_move_timed");
+  back.setFieldValue("-1", "DIR");
+  back.setFieldValue("0", "WAIT");
+  plug(back, "DIST", num(w, 300));
+  plug(back, "SECS", num(w, 5));
+  const left = w.newBlock("stepbot_wheel_move_timed");
+  left.setFieldValue("StepBot.MotorLeft", "MOTOR");
+  plug(left, "AMOUNT", num(w, 50));
+  plug(left, "SECS", num(w, 1));
+  const spin = w.newBlock("stepbot_wheel_move_timed");
+  spin.setFieldValue("deg", "UNIT");
+  plug(spin, "AMOUNT", num(w, 360));
+  const secs = w.newBlock("math_arithmetic");
+  plug(secs, "A", num(w, 1));
+  plug(secs, "B", num(w, 2));
+  spin.getInput("SECS")!.connection!.connect(secs.outputConnection!);
+  const turn = w.newBlock("stepbot_turn_timed");
+  turn.setFieldValue("turn_right", "DIR");
+  plug(turn, "ANGLE", num(w, 90));
+  plug(turn, "SECS", num(w, 2));
+  const arc = w.newBlock("stepbot_arc_timed");
+  arc.setFieldValue("-1", "SIDE");
+  plug(arc, "RADIUS", num(w, 150));
+  plug(arc, "ANGLE", num(w, 45));
+  plug(arc, "SECS", num(w, 3));
+  connectChain(hat, fwd, back, left, spin, turn, arc);
+  expect("stepbot: timed moves", cg().generate(w).code, [
+    "stepbot.motors.turn_right(90, duration=2000)",
+    "stepbot.motors.arc(-150, 45, duration=3000)",
+    "stepbot.motors.move(100, duration=2500)",
+    "stepbot.motors.move(-300, duration=5000, wait=False)",
+    "stepbot.motors.move_motors(50, 0, duration=1000)",
+    "stepbot.motors.rotate(StepBot.MotorLeftAndRight, 360, duration=round(((1 + 2)) * 1000))",
+  ]);
+}
+
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

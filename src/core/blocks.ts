@@ -177,14 +177,15 @@ function groupPlugins(board: Board): Map<string, BloqPlugin[]> {
  *  advanced blocks behind a "More blocks" button. */
 function pluginEntries(plugin: BloqPlugin): Record<string, unknown>[] {
   // A block yields one flyout entry, or several when its `toolbox` is an
-  // array of variants (e.g. one preset per operator of a dropdown block).
+  // array of variants (e.g. one preset per operator of a dropdown block). A
+  // variant's own `advanced` overrides the block's.
   const entries = (advanced: boolean) =>
-    Object.entries(plugin.blocks)
-      .filter(([, def]) => !!def.advanced === advanced)
-      .flatMap(([type, def]) => {
-        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
-        return variants.map((extra) => ({ kind: "block", type, ...extra }));
-      });
+    Object.entries(plugin.blocks).flatMap(([type, def]) => {
+      const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
+      return variants
+        .filter((extra) => !!(extra.advanced ?? def.advanced) === advanced)
+        .map(({ advanced: _, ...extra }) => ({ kind: "block", type, ...extra }));
+    });
   const out: Record<string, unknown>[] = [];
   if (plugin.toolbox.section) out.push({ kind: "label", text: plugin.toolbox.section });
   out.push(...entries(false));

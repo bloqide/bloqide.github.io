@@ -196,7 +196,8 @@ export interface BlockDef {
    * Extra props merged into this block's toolbox flyout entry — chiefly `inputs`
    * with shadow blocks (default plugged-in literals) and `fields` (preset field
    * values). An ARRAY produces several flyout entries of the same block type —
-   * e.g. one preset variant per operator of a dropdown block.
+   * e.g. one preset variant per operator of a dropdown block. A variant may
+   * set its own `advanced` (overriding the block's).
    */
   toolbox?: Record<string, unknown> | Record<string, unknown>[];
 }

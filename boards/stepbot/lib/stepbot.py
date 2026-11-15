@@ -198,42 +198,48 @@ class Motors:
 
   # ---------------------------------------------------------------- Moves
 
-  def move(self, distance, speed=None, wait=True):
-    """Drive straight for distance mm (negative = backward)."""
-    self.move_motors(distance, distance, speed, wait)
+  def move(self, distance, speed=None, wait=True, duration=None):
+    """Drive straight for distance mm (negative = backward). duration: see move_motors()."""
+    self.move_motors(distance, distance, speed, wait, duration)
 
-  def turn(self, angle, speed=None, wait=True):
-    """Turn in place by angle degrees, positive = left. speed is the wheel speed in mm/s."""
+  def turn(self, angle, speed=None, wait=True, duration=None):
+    """Turn in place by angle degrees, positive = left. speed is the wheel speed in mm/s.
+    duration: see move_motors()."""
     arc = math.pi * self.wheel_track * angle / 360
-    self.move_motors(-arc, arc, speed, wait)
+    self.move_motors(-arc, arc, speed, wait, duration)
 
-  def turn_left(self, angle, speed=None, wait=True):
-    self.turn(abs(angle), speed, wait)
+  def turn_left(self, angle, speed=None, wait=True, duration=None):
+    self.turn(abs(angle), speed, wait, duration)
 
-  def turn_right(self, angle, speed=None, wait=True):
-    self.turn(-abs(angle), speed, wait)
+  def turn_right(self, angle, speed=None, wait=True, duration=None):
+    self.turn(-abs(angle), speed, wait, duration)
 
-  def arc(self, radius, angle, speed=None, wait=True):
+  def arc(self, radius, angle, speed=None, wait=True, duration=None):
     """Drive along a circle of radius mm (center on the left if positive, right if negative)
-    for angle degrees (negative = backward). speed is the outer wheel speed in mm/s."""
+    for angle degrees (negative = backward). speed is the outer wheel speed in mm/s.
+    duration: see move_motors()."""
     theta = math.radians(angle)
     inner = theta * (abs(radius) - self.wheel_track / 2)
     outer = theta * (abs(radius) + self.wheel_track / 2)
     if radius >= 0:
-      self.move_motors(inner, outer, speed, wait)
+      self.move_motors(inner, outer, speed, wait, duration)
     else:
-      self.move_motors(outer, inner, speed, wait)
+      self.move_motors(outer, inner, speed, wait, duration)
 
-  def rotate(self, motor, degrees, speed=None, wait=True):
-    """Rotate one wheel (or both) by degrees, the other one stays still."""
+  def rotate(self, motor, degrees, speed=None, wait=True, duration=None):
+    """Rotate one wheel (or both) by degrees, the other one stays still. duration: see move_motors()."""
     distance = math.pi * self.wheel_diameter * degrees / 360
     left = distance if motor in (MotorLeft, MotorLeftAndRight) else 0
     right = distance if motor in (MotorRight, MotorLeftAndRight) else 0
-    self.move_motors(left, right, speed, wait)
+    self.move_motors(left, right, speed, wait, duration)
 
-  def move_motors(self, left, right, speed=None, wait=True):
+  def move_motors(self, left, right, speed=None, wait=True, duration=None):
     """Move each wheel by its own distance in mm, synchronized.
-    speed (mm/s) applies to the wheel with the longest distance."""
+    speed (mm/s) applies to the wheel with the longest distance.
+    duration (ms), instead of speed: the speed that makes the move last that long, ramps included.
+    A move can't be quicker than speeding up to half way and braking: it then goes as fast as it can."""
+    if duration is not None:
+      speed = self._speed_for(max(abs(left), abs(right)), duration / 1000)
     spm = self._steps_per_mm()
     self._move(round(left * spm), round(right * spm), self._rate(self._speed(speed)), wait)
 
@@ -425,6 +431,21 @@ class Motors:
 
   def _speed(self, speed):
     return self.speed if speed is None else abs(speed)
+
+  def _speed_for(self, distance, seconds):
+    """Cruise speed (mm/s) for a move of distance mm to last seconds, with the board's
+    trapezoidal ramp (seconds = distance / v + v / acceleration)."""
+    a = self.acceleration
+    if distance == 0:
+      return self.speed
+    if seconds <= 0:
+      return self.max_speed if a == 0 else math.sqrt(a * distance)
+    if a == 0:
+      return distance / seconds
+    disc = (a * seconds) ** 2 - 4 * a * distance
+    if disc <= 0: # too short to reach a cruise speed: speed up to half way, then brake
+      return math.sqrt(a * distance)
+    return (a * seconds - math.sqrt(disc)) / 2
 
   def _rate(self, speed):
     """mm/s -> (micro)steps/s, limited to what the board can do"""

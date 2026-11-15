@@ -67,6 +67,39 @@ function negate(expr: string): string {
   return /^\d+(\.\d+)?$/.test(expr) ? `-${expr}` : `-(${expr})`;
 }
 
+/** The driver's `duration=` (ms) argument for a time in seconds, folded when
+ *  it's a plain number so the code reads duration=5000. */
+function duration(ctx: GenContext, block: Blockly.Block): string {
+  const secs = ctx.value(block, "SECS", "1");
+  const ms = /^\d+(\.\d+)?$/.test(secs) ? String(Math.round(parseFloat(secs) * 1000)) : `round((${secs}) * 1000)`;
+  return `duration=${ms}`;
+}
+
+/** Move one wheel or both, by mm or degrees ("move wheel" blocks). */
+function wheelMove(ctx: GenContext, block: Blockly.Block, extra: string[] = []): void {
+  const motor = block.getFieldValue("MOTOR");
+  const amount = ctx.value(block, "AMOUNT", "0");
+  if (block.getFieldValue("UNIT") === "deg") {
+    driverWithConstants(ctx);
+    callAndWait(ctx, block, "rotate", [motor, amount, ...extra]);
+  } else if (motor === BOTH) {
+    callAndWait(ctx, block, "move", [amount, ...extra]); // amount evaluated once, not per wheel
+  } else {
+    const wheels = motor === "StepBot.MotorLeft" ? [amount, "0"] : ["0", amount];
+    callAndWait(ctx, block, "move_motors", [...wheels, ...extra]);
+  }
+}
+
+/** arc()'s radius (negative = curve to the right) and angle. */
+function arcArgs(ctx: GenContext, block: Blockly.Block): string[] {
+  const radius = ctx.value(block, "RADIUS", "0");
+  return [block.getFieldValue("SIDE") === "-1" ? negate(radius) : radius, ctx.value(block, "ANGLE", "0")];
+}
+
+const TIMED_TOOLTIP =
+  " The speed is worked out so the move lasts that long, speeding up and slowing down " +
+  "included; a move too short to fit just goes as fast as it can.";
+
 /** What a block can wait for: the motors, or the music (Sound blocks). Each
  *  names the driver's poll and its own blocking wait. */
 export type Activity = { busy: string; wait: string };
@@ -209,6 +242,32 @@ export const plugin: BloqPlugin = {
       toolbox: { inputs: { SPEED: NUM(100) } },
     },
 
+    stepbot_move_timed: {
+      kind: "statement",
+      json: {
+        type: "stepbot_move_timed",
+        message0: "move %1 %2 mm in %3 s %4",
+        args0: [
+          {
+            type: "field_dropdown",
+            name: "DIR",
+            options: [
+              ["forward", "1"],
+              ["backward", "-1"],
+            ],
+          },
+          { type: "input_value", name: "DIST" },
+          { type: "input_value", name: "SECS" },
+          waitField,
+        ],
+        inputsInline: true,
+        previousStatement: null,
+        nextStatement: null,
+        colour: COLOUR,
+        tooltip: "Drive straight for a distance, taking this many seconds." + TIMED_TOOLTIP,
+      },
+      toolbox: { inputs: { DIST: NUM(100), SECS: NUM(5) } },
+    },
     stepbot_turn: {
       kind: "statement",
       json: {
@@ -235,6 +294,32 @@ export const plugin: BloqPlugin = {
       toolbox: { inputs: { ANGLE: NUM(90) } },
     },
 
+    stepbot_turn_timed: {
+      kind: "statement",
+      json: {
+        type: "stepbot_turn_timed",
+        message0: "turn %1 %2 degrees in %3 s %4",
+        args0: [
+          {
+            type: "field_dropdown",
+            name: "DIR",
+            options: [
+              ["left", "turn_left"],
+              ["right", "turn_right"],
+            ],
+          },
+          { type: "input_value", name: "ANGLE" },
+          { type: "input_value", name: "SECS" },
+          waitField,
+        ],
+        inputsInline: true,
+        previousStatement: null,
+        nextStatement: null,
+        colour: COLOUR,
+        tooltip: "Turn on the spot, taking this many seconds." + TIMED_TOOLTIP,
+      },
+      toolbox: { inputs: { ANGLE: NUM(90), SECS: NUM(2) } },
+    },
     stepbot_arc: {
       advanced: true,
       kind: "statement",
@@ -265,6 +350,36 @@ export const plugin: BloqPlugin = {
       toolbox: { inputs: { RADIUS: NUM(200), ANGLE: NUM(90) } },
     },
 
+    stepbot_arc_timed: {
+      advanced: true,
+      kind: "statement",
+      json: {
+        type: "stepbot_arc_timed",
+        message0: "curve %1 radius %2 mm for %3 degrees in %4 s %5",
+        args0: [
+          {
+            type: "field_dropdown",
+            name: "SIDE",
+            options: [
+              ["left", "1"],
+              ["right", "-1"],
+            ],
+          },
+          { type: "input_value", name: "RADIUS" },
+          { type: "input_value", name: "ANGLE" },
+          { type: "input_value", name: "SECS" },
+          waitField,
+        ],
+        inputsInline: true,
+        previousStatement: null,
+        nextStatement: null,
+        colour: COLOUR,
+        tooltip:
+          "Drive along a circle, taking this many seconds. The radius is measured from the " +
+          "middle of the robot; a negative angle drives the curve backward." + TIMED_TOOLTIP,
+      },
+      toolbox: { inputs: { RADIUS: NUM(200), ANGLE: NUM(90), SECS: NUM(3) } },
+    },
     stepbot_wheel_move: {
       kind: "statement",
       json: {
@@ -291,9 +406,44 @@ export const plugin: BloqPlugin = {
           "Move one wheel (or both) by a distance, or rotate it by an angle (360 is a full turn); " +
           "a single wheel moves while the other stays still. A negative amount moves backward.",
       },
-      toolbox: [{ inputs: { AMOUNT: NUM(100) } }, { fields: { UNIT: "deg" }, inputs: { AMOUNT: NUM(360) } }],
+      toolbox: [
+        { inputs: { AMOUNT: NUM(100) } },
+        { fields: { UNIT: "deg" }, inputs: { AMOUNT: NUM(360) }, advanced: true },
+      ],
     },
 
+    stepbot_wheel_move_timed: {
+      kind: "statement",
+      json: {
+        type: "stepbot_wheel_move_timed",
+        message0: "move wheel %1 by %2 %3 in %4 s %5",
+        args0: [
+          motorField,
+          { type: "input_value", name: "AMOUNT" },
+          {
+            type: "field_dropdown",
+            name: "UNIT",
+            options: [
+              ["mm", "mm"],
+              ["degrees", "deg"],
+            ],
+          },
+          { type: "input_value", name: "SECS" },
+          waitField,
+        ],
+        inputsInline: true,
+        previousStatement: null,
+        nextStatement: null,
+        colour: COLOUR,
+        tooltip:
+          "Move one wheel (or both) by a distance or an angle, taking this many seconds; " +
+          "a single wheel moves while the other stays still." + TIMED_TOOLTIP,
+      },
+      toolbox: [
+        { inputs: { AMOUNT: NUM(100), SECS: NUM(5) } },
+        { fields: { UNIT: "deg" }, inputs: { AMOUNT: NUM(360), SECS: NUM(5) }, advanced: true },
+      ],
+    },
     stepbot_run: {
       advanced: true,
       kind: "statement",
@@ -525,27 +675,29 @@ export const plugin: BloqPlugin = {
       const dist = ctx.value(block, "DIST", "0");
       callAndWait(ctx, block, "move", [block.getFieldValue("DIR") === "-1" ? negate(dist) : dist]);
     },
+    stepbot_move_timed: (block: Blockly.Block, ctx: GenContext) => {
+      const dist = ctx.value(block, "DIST", "0");
+      const signed = block.getFieldValue("DIR") === "-1" ? negate(dist) : dist;
+      callAndWait(ctx, block, "move", [signed, duration(ctx, block)]);
+    },
     stepbot_turn: (block: Blockly.Block, ctx: GenContext) => {
       callAndWait(ctx, block, block.getFieldValue("DIR"), [ctx.value(block, "ANGLE", "0")]);
     },
+    stepbot_turn_timed: (block: Blockly.Block, ctx: GenContext) => {
+      const angle = ctx.value(block, "ANGLE", "0");
+      callAndWait(ctx, block, block.getFieldValue("DIR"), [angle, duration(ctx, block)]);
+    },
     stepbot_arc: (block: Blockly.Block, ctx: GenContext) => {
-      const radius = ctx.value(block, "RADIUS", "0");
-      callAndWait(ctx, block, "arc", [
-        block.getFieldValue("SIDE") === "-1" ? negate(radius) : radius,
-        ctx.value(block, "ANGLE", "0"),
-      ]);
+      callAndWait(ctx, block, "arc", arcArgs(ctx, block));
+    },
+    stepbot_arc_timed: (block: Blockly.Block, ctx: GenContext) => {
+      callAndWait(ctx, block, "arc", [...arcArgs(ctx, block), duration(ctx, block)]);
     },
     stepbot_wheel_move: (block: Blockly.Block, ctx: GenContext) => {
-      const motor = block.getFieldValue("MOTOR");
-      const amount = ctx.value(block, "AMOUNT", "0");
-      if (block.getFieldValue("UNIT") === "deg") {
-        driverWithConstants(ctx);
-        callAndWait(ctx, block, "rotate", [motor, amount]);
-      } else if (motor === BOTH) {
-        callAndWait(ctx, block, "move", [amount]); // amount evaluated once, not per wheel
-      } else {
-        callAndWait(ctx, block, "move_motors", motor === "StepBot.MotorLeft" ? [amount, "0"] : ["0", amount]);
-      }
+      wheelMove(ctx, block);
+    },
+    stepbot_wheel_move_timed: (block: Blockly.Block, ctx: GenContext) => {
+      wheelMove(ctx, block, [duration(ctx, block)]);
     },
     stepbot_drive: (block: Blockly.Block, ctx: GenContext) => {
       const m = driver(ctx);
