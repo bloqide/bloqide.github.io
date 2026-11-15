@@ -42,7 +42,10 @@
           <button id="btn-undo" title="Undo (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
           <button id="btn-redo" title="Redo (Ctrl+Shift+Z)"><i class="fa-solid fa-rotate-right"></i></button>
         </div>
-        <span class="board-label" id="board-label"></span>
+        <button id="btn-board" class="board-btn" title="Choose the board">
+          <span class="board-prefix">Board:</span> <span id="board-label"></span>
+          <i class="fa-solid fa-caret-down board-caret"></i>
+        </button>
         <div class="spacer"></div>
         <div class="group">
           <button data-view="blocks" class="view-btn active">Blocks</button>

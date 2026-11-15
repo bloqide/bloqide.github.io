@@ -1004,7 +1004,7 @@ const boardPicker = initBoardPicker({
     syncPool(); // device controls that depend on the board (Bluetooth toggle)
   },
 });
-document.getElementById("board-label")!.addEventListener("click", () => boardPicker.open());
+document.getElementById("btn-board")!.addEventListener("click", () => boardPicker.open());
 
 // Examples — full-project templates for the current board, opened in a new tab.
 const examplesPicker = initExamplesPicker({

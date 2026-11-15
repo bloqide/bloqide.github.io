@@ -56,9 +56,9 @@ body {
 }
 #menubar .brand { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: #5b80a5; }
 #menubar .brand-icon { width: 20px; height: 20px; display: block; }
-#menubar .board-label { color: var(--muted); font-size: 12px; cursor: pointer; }
-#menubar .board-label:hover { color: var(--fg); }
-#menubar .board-label::after { content: " ▾"; opacity: 0.6; }
+#menubar .board-btn { display: inline-flex; align-items: center; gap: 6px; }
+#menubar .board-prefix { color: var(--muted); }
+#menubar .board-caret { font-size: 16px; line-height: 1; opacity: 0.8; }
 #menubar .spacer { flex: 1; }
 #menubar .group { display: flex; gap: 4px; }
 button {
