@@ -48,7 +48,7 @@ export const plugin: BloqPlugin = {
   id: "espbot-motors",
   name: "Motors",
   version: "1.0.0",
-  toolbox: { category: "Motors", colour: COLOUR, order: 70, faIcon: "fa-gears" },
+  toolbox: { category: "Motors", colour: COLOUR, order: 70, faIcon: "fa-gears", section: "EspBot Motors" },
 
   // Snippet: drive forward for a second, then stop.
   presets: [

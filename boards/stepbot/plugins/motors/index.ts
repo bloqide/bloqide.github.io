@@ -110,10 +110,28 @@ export const plugin: BloqPlugin = {
   id: "stepbot-motors",
   name: "Motors",
   version: "1.0.0",
-  toolbox: { category: "Motors", colour: COLOUR, order: 70, faIcon: "fa-gears" },
+  toolbox: { category: "Motors", colour: COLOUR, order: 70, faIcon: "fa-gears", section: "StepBot Motors" },
 
-  // Snippet: drive a square.
   presets: [
+    // Snippet: a complete starter program.
+    {
+      kind: "block",
+      type: "when_started",
+      next: {
+        block: {
+          type: "stepbot_setup",
+          fields: { MICROSTEPS: "16" },
+          next: {
+            block: {
+              type: "stepbot_move",
+              fields: { DIR: "1", WAIT: "1" },
+              inputs: { DIST: NUM(100) },
+            },
+          },
+        },
+      },
+    },
+    // Snippet: drive a square.
     {
       kind: "block",
       type: "repeat_times",
@@ -166,6 +184,31 @@ export const plugin: BloqPlugin = {
       toolbox: { inputs: { DIST: NUM(100) } },
     },
 
+    stepbot_drive: {
+      kind: "statement",
+      json: {
+        type: "stepbot_drive",
+        message0: "move %1 at %2 mm/s",
+        args0: [
+          {
+            type: "field_dropdown",
+            name: "DIR",
+            options: [
+              ["forward", "forward"],
+              ["backward", "backward"],
+            ],
+          },
+          { type: "input_value", name: "SPEED" },
+        ],
+        inputsInline: true,
+        previousStatement: null,
+        nextStatement: null,
+        colour: COLOUR,
+        tooltip: "Keep moving until told to stop.",
+      },
+      toolbox: { inputs: { SPEED: NUM(100) } },
+    },
+
     stepbot_turn: {
       kind: "statement",
       json: {
@@ -193,6 +236,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_arc: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_arc",
@@ -250,32 +294,8 @@ export const plugin: BloqPlugin = {
       toolbox: [{ inputs: { AMOUNT: NUM(100) } }, { fields: { UNIT: "deg" }, inputs: { AMOUNT: NUM(360) } }],
     },
 
-    stepbot_drive: {
-      kind: "statement",
-      json: {
-        type: "stepbot_drive",
-        message0: "drive %1 at %2 mm/s",
-        args0: [
-          {
-            type: "field_dropdown",
-            name: "DIR",
-            options: [
-              ["forward", "forward"],
-              ["backward", "backward"],
-            ],
-          },
-          { type: "input_value", name: "SPEED" },
-        ],
-        inputsInline: true,
-        previousStatement: null,
-        nextStatement: null,
-        colour: COLOUR,
-        tooltip: "Keep driving until told to stop.",
-      },
-      toolbox: { inputs: { SPEED: NUM(100) } },
-    },
-
     stepbot_run: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_run",
@@ -293,6 +313,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_spin: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_spin",
@@ -346,6 +367,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_power: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_power",
@@ -382,6 +404,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_is_moving: {
+      advanced: true,
       kind: "value",
       json: {
         type: "stepbot_is_moving",
@@ -393,6 +416,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_distance: {
+      advanced: true,
       kind: "value",
       json: {
         type: "stepbot_distance",
@@ -415,6 +439,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_reset_distance: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_reset_distance",
@@ -427,6 +452,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_config: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_config",
@@ -447,6 +473,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_current: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_current",
@@ -467,6 +494,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_setup: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_setup",

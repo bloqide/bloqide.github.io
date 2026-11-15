@@ -21,7 +21,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./style.css";
 
 import { getBoard } from "./core/registry";
-import { registerBlocks, buildToolbox } from "./core/blocks";
+import { registerBlocks, buildToolbox, bindToolbox } from "./core/blocks";
 import { CodeGen } from "./core/codegen";
 import type { GenResult } from "./core/types";
 import { ConnectionPool } from "./serial/connectionManager";
@@ -93,6 +93,7 @@ const workspace = Blockly.inject("blockly", {
   trashcan: true,
   plugins: { metricsManager: OverlayMetricsManager },
 });
+bindToolbox(workspace); // "More blocks" flyout buttons
 
 // Keep the block flyout pinned open (don't auto-close after dragging a block).
 const flyout = workspace.getFlyout();

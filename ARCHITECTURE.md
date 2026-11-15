@@ -324,7 +324,11 @@ in-memory session hash cache; a full impl reads a device-side manifest.)*
   flyout; drag blocks onto the canvas. Blockly's category toolbox. Plugins that
   name the same category merge into one (a shared Servo plugin joins a board's
   own "Motors" category); the lowest-order plugin of the group gives the
-  category its colour and icon.
+  category its colour and icon. A plugin's `toolbox.section` puts a label above
+  its blocks ("StepBot Motors" / "StepBot Motor Sound" / "Servomotors"), and
+  blocks flagged `advanced` hide behind a "▾ More blocks" flyout button at the
+  end of their section (per session; the button rebuilds only that category's
+  flyout via `updateFlyoutContents` and keeps its scroll position).
 - **Canvas**: zoom, pan, grid, auto-size, trashcan (Blockly). Zelos renderer for
   the rounded Scratch look.
 - **Code view**: read-only, line-numbered, source-map-highlighted; **Split** shows

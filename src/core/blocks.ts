@@ -116,26 +116,117 @@ export function registerBlocks(board: Board): void {
   registeredForBoard = board.id;
 }
 
-/** Build a Blockly category toolbox from the board's active plugins.
- *  Plugins that name the same category merge into one — that's how a shared
- *  plugin (Servo) can land in the same "Motors" category as a board's own
- *  motor blocks. */
-export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinition {
-  // activePlugins is ordered by toolbox.order, and a Map keeps insertion order,
-  // so categories keep that order and the first plugin of a group (the lowest
-  // order) sets the category's colour and icon.
+// Plugins whose advanced blocks are currently shown (toggled by the "More
+// blocks" flyout button). Per session, shared across boards.
+const expanded = new Set<string>();
+
+// The workspace whose toolbox the "More blocks" buttons update, once injected.
+let toolboxWorkspace: Blockly.WorkspaceSvg | null = null;
+const buttonKeys = new Map<string, () => void>();
+
+/** Hook the toolbox's flyout buttons up to the workspace (call once after
+ *  inject: the first toolbox is built before the workspace exists). */
+export function bindToolbox(workspace: Blockly.WorkspaceSvg): void {
+  toolboxWorkspace = workspace;
+  for (const [key, fn] of buttonKeys) workspace.registerButtonCallback(key, fn);
+}
+
+function buttonKey(key: string, fn: () => void): string {
+  buttonKeys.set(key, fn);
+  toolboxWorkspace?.registerButtonCallback(key, fn);
+  return key;
+}
+
+/** Show or hide a plugin's advanced blocks, keeping the open flyout where it is. */
+function toggleAdvanced(plugin: BloqPlugin): void {
+  if (expanded.has(plugin.id)) expanded.delete(plugin.id);
+  else expanded.add(plugin.id);
+  const ws = toolboxWorkspace;
+  const toolbox = ws?.getToolbox() as Blockly.Toolbox | null | undefined;
+  if (!ws || !toolbox || !activeBoard) return;
+  const name = plugin.toolbox.category;
+  const category = toolbox.getToolboxItemById(categoryId(name)) as Blockly.ToolboxCategory | null;
+  if (!category) return;
+  const flyoutWs = toolbox.getFlyout()?.getWorkspace();
+  const scrollY = flyoutWs?.scrollY ?? 0;
+  category.updateFlyoutContents(
+    categoryContents(activeBoard, name, groupPlugins(activeBoard).get(name) ?? [plugin]) as unknown as Blockly.utils.toolbox.FlyoutItemInfoArray
+  );
+  if (toolbox.getSelectedItem() === category) {
+    toolbox.refreshSelection(); // re-shows the flyout, scrolled back to the top…
+    flyoutWs?.scroll(flyoutWs.scrollX, scrollY); // …so put it back
+  }
+}
+
+const categoryId = (name: string) => `category:${name}`;
+
+/** Active plugins grouped by category name, in toolbox order. activePlugins is
+ *  ordered by toolbox.order and a Map keeps insertion order, so categories keep
+ *  that order and the first plugin of a group (the lowest order) leads it. */
+function groupPlugins(board: Board): Map<string, BloqPlugin[]> {
   const groups = new Map<string, BloqPlugin[]>();
   for (const plugin of activePlugins(board)) {
     const group = groups.get(plugin.toolbox.category);
     if (group) group.push(plugin);
     else groups.set(plugin.toolbox.category, [plugin]);
   }
+  return groups;
+}
 
-  const contents = [...groups].map(([name, plugins]) => {
+/** One plugin's part of a flyout: its section label, its blocks, and its
+ *  advanced blocks behind a "More blocks" button. */
+function pluginEntries(plugin: BloqPlugin): Record<string, unknown>[] {
+  // A block yields one flyout entry, or several when its `toolbox` is an
+  // array of variants (e.g. one preset per operator of a dropdown block).
+  const entries = (advanced: boolean) =>
+    Object.entries(plugin.blocks)
+      .filter(([, def]) => !!def.advanced === advanced)
+      .flatMap(([type, def]) => {
+        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
+        return variants.map((extra) => ({ kind: "block", type, ...extra }));
+      });
+  const out: Record<string, unknown>[] = [];
+  if (plugin.toolbox.section) out.push({ kind: "label", text: plugin.toolbox.section });
+  out.push(...entries(false));
+  const advanced = entries(true);
+  if (advanced.length) {
+    const open = expanded.has(plugin.id);
+    out.push({
+      kind: "button",
+      text: open ? "▴ Fewer blocks" : "▾ More blocks",
+      callbackkey: buttonKey(`more-blocks:${plugin.id}`, () => toggleAdvanced(plugin)),
+    });
+    if (open) out.push(...advanced);
+  }
+  return out;
+}
+
+/** A static category's flyout: each plugin's entries, then the presets. */
+function categoryContents(board: Board, name: string, plugins: BloqPlugin[]): Record<string, unknown>[] {
+  const entries = plugins.flatMap(pluginEntries);
+  // Preset snippets: the plugins' own, plus any the board targets at this
+  // category. Grouped under a label at the bottom of the flyout.
+  const presets = [
+    ...plugins.flatMap((plugin) => plugin.presets ?? []),
+    ...(board.presets?.[name] ?? []),
+  ];
+  if (presets.length) {
+    entries.push({ kind: "label", text: "Presets" }, ...presets);
+  }
+  return entries;
+}
+
+/** Build a Blockly category toolbox from the board's active plugins.
+ *  Plugins that name the same category merge into one — that's how a shared
+ *  plugin (Servo) can land in the same "Motors" category as a board's own
+ *  motor blocks; each can label its part with a `section`. */
+export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinition {
+  const contents = [...groupPlugins(board)].map(([name, plugins]) => {
     const head = plugins[0];
     const category: Record<string, unknown> = {
       kind: "category",
       name,
+      toolboxitemid: categoryId(name), // lets a "More blocks" button update it in place
       colour: String(head.toolbox.colour),
       // Replace Blockly's default icon span classes with a FontAwesome glyph.
       // Default to the solid style unless the faIcon names one (e.g. brand icons
@@ -151,24 +242,7 @@ export function buildToolbox(board: Board): Blockly.utils.toolbox.ToolboxDefinit
       category.custom = head.toolbox.custom;
       return category;
     }
-    // A block yields one flyout entry, or several when its `toolbox` is an
-    // array of variants (e.g. one preset per operator of a dropdown block).
-    const entries: Record<string, unknown>[] = plugins.flatMap((plugin) =>
-      Object.entries(plugin.blocks).flatMap(([type, def]) => {
-        const variants = Array.isArray(def.toolbox) ? def.toolbox : [def.toolbox ?? {}];
-        return variants.map((extra) => ({ kind: "block", type, ...extra }));
-      })
-    );
-    // Preset snippets: the plugins' own, plus any the board targets at this
-    // category. Grouped under a label at the bottom of the flyout.
-    const presets = [
-      ...plugins.flatMap((plugin) => plugin.presets ?? []),
-      ...(board.presets?.[name] ?? []),
-    ];
-    if (presets.length) {
-      entries.push({ kind: "label", text: "Presets" }, ...presets);
-    }
-    category.contents = entries;
+    category.contents = categoryContents(board, name, plugins);
     return category;
   });
   return { kind: "categoryToolbox", contents } as unknown as Blockly.utils.toolbox.ToolboxDefinition;

@@ -176,6 +176,11 @@ export interface BlockDef {
    */
   requiresScheduler?: boolean;
   /**
+   * Hidden at first behind a "More blocks" button at the end of its plugin's
+   * blocks, to keep long categories short for beginners.
+   */
+  advanced?: boolean;
+  /**
    * Block defined by Blockly itself (the built-in procedure blocks). The engine
    * still wants it in the def/generator maps, but must NOT redefine its JSON —
    * that would strip Blockly's mutator + parameter/caller-sync machinery.
@@ -208,6 +213,9 @@ export interface BloqPlugin {
     colour: number;
     order: number;
     faIcon?: string;
+    /** A label shown above this plugin's blocks — splits a category that
+     *  several plugins share (e.g. "StepBot Motors" / "Servomotors"). */
+    section?: string;
     /** Blockly dynamic-flyout key (e.g. "VARIABLE") — blocks are supplied by a
      *  registered category callback instead of a static list. */
     custom?: string;

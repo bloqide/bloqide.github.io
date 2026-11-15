@@ -57,7 +57,7 @@ export const plugin: BloqPlugin = {
   requires: ["pwm"],
   // Shares the "Motors" category with a board's own motor blocks (the toolbox
   // merges plugins that name the same category).
-  toolbox: { category: "Motors", colour: COLOUR, order: 75, faIcon: "fa-gears" },
+  toolbox: { category: "Motors", colour: COLOUR, order: 75, faIcon: "fa-gears", section: "Servomotors" },
 
   // Snippet: sweep back and forth, smoothly.
   presets: [

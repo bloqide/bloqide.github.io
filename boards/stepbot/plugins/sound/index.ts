@@ -25,7 +25,7 @@ import { type Activity, callAndWait, driver, waitField, waitIdle } from "../moto
 // Same driver and the same "and wait" / "in background" handling as the motor
 // blocks, polling playing() instead of busy().
 
-const COLOUR = 230; // blue
+const COLOUR = 230; // blue, to tell the sound blocks from the motion ones they sit with
 
 const NUM = (n: number) => ({ shadow: { type: "math_number", fields: { NUM: n } } });
 const TEXT = (t: string) => ({ shadow: { type: "text_literal", fields: { TEXT: t } } });
@@ -39,7 +39,9 @@ export const plugin: BloqPlugin = {
   id: "stepbot-sound",
   name: "Sound",
   version: "1.0.0",
-  toolbox: { category: "Sound", colour: COLOUR, order: 71, faIcon: "fa-music" },
+  // Shares the Motors category, between the StepBot motor blocks (order 70)
+  // and the Servo blocks (75).
+  toolbox: { category: "Motors", colour: COLOUR, order: 71, faIcon: "fa-music", section: "StepBot Motor Sound" },
 
   // Snippet: music while driving.
   presets: [
@@ -92,6 +94,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_play_tune: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_play_tune",
@@ -145,6 +148,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_set_volume: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_set_volume",
@@ -165,6 +169,7 @@ export const plugin: BloqPlugin = {
     },
 
     stepbot_set_tempo: {
+      advanced: true,
       kind: "statement",
       json: {
         type: "stepbot_set_tempo",
