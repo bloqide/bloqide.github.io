@@ -365,7 +365,8 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
 - **Boards** (self-contained in `boards/<id>/`): ESP32-C3, ESP32, RP2040, and
   two custom robots: EspBot (DC motors + BLE) and StepBot (two steppers run by a
   CH32V003 co-processor over OneWire on IO2, driven by the shipped `stepbot.py`
-  in mm / degrees; plus a WS2812 RGB LED on IO10). Glob-loaded registry over `boards/*/*.json`,
+  in mm / degrees, which also plays music by vibrating the motors; plus a
+  WS2812 RGB LED on IO10). Glob-loaded registry over `boards/*/*.json`,
   `plugins/*` and `boards/*/plugins/*`.
 - **Block library** — `core-control` (hats, loops, waits, if / if-else-if
   mutator, wait-until), `core-gpio`, `core-logic`, `core-math` (arithmetic +
@@ -408,7 +409,7 @@ See `src/core/types.ts` for the authoritative definitions: `Board`,
   `def` can't drive the scheduler).
 - CodeGen: simple ↔ scheduler auto-mode, header/pin-setup dedup, bidirectional
   source map, setup-hat globals, user-function defs, unknown-block detection.
-  (`scripts/codegen.test.ts` — 63 checks pass.)
+  (`scripts/codegen.test.ts` — 66 checks pass.)
 - Cooperative scheduler runtime; on-demand device-library shipping to `/lib`.
 - Blockly workspace (custom zelos renderer), toolbox from plugins with a
   drag-out-hides-flyout tweak and a fixed-scale flyout (doesn't grow with zoom),

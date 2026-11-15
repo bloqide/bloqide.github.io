@@ -41,7 +41,7 @@ const MOTORS: [string, string][] = [
 const BOTH = "StepBot.MotorLeftAndRight";
 const motorField = { type: "field_dropdown", name: "MOTOR", options: MOTORS };
 
-const waitField = {
+export const waitField = {
   type: "field_dropdown",
   name: "WAIT",
   options: [
@@ -50,7 +50,7 @@ const waitField = {
   ],
 };
 
-function driver(ctx: GenContext): string {
+export function driver(ctx: GenContext): string {
   ctx.ensureImport("import stepbot");
   ctx.requireLibrary("/lib/stepbot.py");
   return "stepbot.motors";
@@ -67,23 +67,34 @@ function negate(expr: string): string {
   return /^\d+(\.\d+)?$/.test(expr) ? `-${expr}` : `-(${expr})`;
 }
 
-/** Wait for the motors to finish, adapting to the codegen mode like `wait until`. */
-function waitIdle(ctx: GenContext, block: Blockly.Block): void {
+/** What a block can wait for: the motors, or the music (Sound blocks). Each
+ *  names the driver's poll and its own blocking wait. */
+export type Activity = { busy: string; wait: string };
+const MOTION: Activity = { busy: "busy", wait: "wait" };
+
+/** Wait for an activity to finish, adapting to the codegen mode like `wait until`. */
+export function waitIdle(ctx: GenContext, block: Blockly.Block, what: Activity = MOTION): void {
   const m = driver(ctx);
   if (ctx.schedulerMode) {
-    // Every busy() is a OneWire round trip: poll at the driver's own pace
+    // Every poll is a OneWire round trip: poll at the driver's own pace
     // rather than on every scheduler pass.
-    ctx.line(`while ${m}.busy():`, block.id);
+    ctx.line(`while ${m}.${what.busy}():`, block.id);
     ctx.indented(() => ctx.line("yield from sched.sleep_ms(10)", block.id));
     ctx.markYield();
   } else {
-    ctx.line(`${m}.wait()`, block.id);
+    ctx.line(`${m}.${what.wait}()`, block.id);
   }
 }
 
-/** A move call honouring the block's WAIT field. The driver's own wait=True is
- *  blocking, so scheduler mode starts the move in the background and yields. */
-function move(ctx: GenContext, block: Blockly.Block, method: string, args: string[]): void {
+/** A driver call honouring the block's WAIT field. The driver's own wait=True
+ *  is blocking, so scheduler mode starts it in the background and yields. */
+export function callAndWait(
+  ctx: GenContext,
+  block: Blockly.Block,
+  method: string,
+  args: string[],
+  what: Activity = MOTION
+): void {
   const m = driver(ctx);
   const wait = block.getFieldValue("WAIT") === "1";
   if (wait && !ctx.schedulerMode) {
@@ -91,8 +102,9 @@ function move(ctx: GenContext, block: Blockly.Block, method: string, args: strin
     return;
   }
   ctx.line(`${m}.${method}(${[...args, "wait=False"].join(", ")})`, block.id);
-  if (wait) waitIdle(ctx, block);
+  if (wait) waitIdle(ctx, block, what);
 }
+
 
 export const plugin: BloqPlugin = {
   id: "stepbot-motors",
@@ -483,14 +495,14 @@ export const plugin: BloqPlugin = {
   generators: {
     stepbot_move: (block: Blockly.Block, ctx: GenContext) => {
       const dist = ctx.value(block, "DIST", "0");
-      move(ctx, block, "move", [block.getFieldValue("DIR") === "-1" ? negate(dist) : dist]);
+      callAndWait(ctx, block, "move", [block.getFieldValue("DIR") === "-1" ? negate(dist) : dist]);
     },
     stepbot_turn: (block: Blockly.Block, ctx: GenContext) => {
-      move(ctx, block, block.getFieldValue("DIR"), [ctx.value(block, "ANGLE", "0")]);
+      callAndWait(ctx, block, block.getFieldValue("DIR"), [ctx.value(block, "ANGLE", "0")]);
     },
     stepbot_arc: (block: Blockly.Block, ctx: GenContext) => {
       const radius = ctx.value(block, "RADIUS", "0");
-      move(ctx, block, "arc", [
+      callAndWait(ctx, block, "arc", [
         block.getFieldValue("SIDE") === "-1" ? negate(radius) : radius,
         ctx.value(block, "ANGLE", "0"),
       ]);
@@ -500,11 +512,11 @@ export const plugin: BloqPlugin = {
       const amount = ctx.value(block, "AMOUNT", "0");
       if (block.getFieldValue("UNIT") === "deg") {
         driverWithConstants(ctx);
-        move(ctx, block, "rotate", [motor, amount]);
+        callAndWait(ctx, block, "rotate", [motor, amount]);
       } else if (motor === BOTH) {
-        move(ctx, block, "move", [amount]); // amount evaluated once, not per wheel
+        callAndWait(ctx, block, "move", [amount]); // amount evaluated once, not per wheel
       } else {
-        move(ctx, block, "move_motors", motor === "StepBot.MotorLeft" ? [amount, "0"] : ["0", amount]);
+        callAndWait(ctx, block, "move_motors", motor === "StepBot.MotorLeft" ? [amount, "0"] : ["0", amount]);
       }
     },
     stepbot_drive: (block: Blockly.Block, ctx: GenContext) => {

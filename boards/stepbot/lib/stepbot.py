@@ -7,6 +7,7 @@
 # Units: distances in mm, speeds in mm/s, accelerations in mm/s², angles in degrees.
 # Positive distances and speeds move the robot forward, positive turn angles turn left (counter-clockwise).
 # Moves are synchronized: both wheels start, accelerate and stop together.
+# Sound: the motors play notes by vibrating in place, also while moving (notes don't change distances).
 
 from machine import Pin
 from micropython import const
@@ -22,12 +23,16 @@ _CMD_ENABLE = const(0x04)
 _CMD_RESET_POSITION = const(0x05)
 _CMD_SPEED = const(0x10)
 _CMD_MOVE = const(0x11)
+_CMD_NOTES = const(0x12)
+_CMD_SOUND_STOP = const(0x13)
 _CMD_SET_ACCELERATION = const(0x20)
 _CMD_SET_MICROSTEP = const(0x21)
 _CMD_SET_CURRENT = const(0x22)
 _CMD_SET_TIMEOUT = const(0x23)
+_CMD_SET_SOUND = const(0x24)
 _CMD_GET_STATUS = const(0x30)
 _CMD_GET_INFO = const(0x31)
+_CMD_GET_SOUND = const(0x32)
 
 _ST_MOVING = const(0x01)
 _ST_BUSY = const(0x02)
@@ -40,7 +45,11 @@ _RETRIES = const(5)
 _BOOT_MS = const(500) # the board boots faster than the ESP32, this only covers a slow first answer
 _POLL_MS = const(10)
 
+_FEATURE_SOUND = const(0x02)
+
 _MICROSTEPS = (1, 2, 4, 8, 16, 32, 64, 128, 256)
+_SEMITONES = {'c': 0, 'd': 2, 'e': 4, 'f': 5, 'g': 7, 'a': 9, 'b': 11, 'h': 11}
+_MAX_PITCH = const(40000) # 5000Hz in 1/8 Hz
 
 class StepBot:
   MotorLeftAndRight = const(1)
@@ -76,7 +85,13 @@ class Motors:
     self.hold_current = 25     # % when stopped (after 0.5s)
     self.timeout = 0           # ms without communication before an automatic stop, 0 = off
 
+    # Sound
+    self.volume = 50           # % of a full step of vibration (50 sounds best, more is not much louder)
+    self.note_gap = 20         # ms of silence at the end of each note, 0 = notes tied together
+    self.tempo = 120           # beats per minute for play() when the tune does not set it
+
     self.max_step_rate = 80000 # updated from the board
+    self._sound = False
 
   # ---------------------------------------------------------------- Settings
 
@@ -308,6 +323,57 @@ class Motors:
     b = self._query(_CMD_GET_INFO, 8)
     return b[2], bool(b[3] & 1), self._max_rate(b)
 
+  # ---------------------------------------------------------------- Sound
+
+  def set_volume(self, volume, gap=None):
+    """Volume in % (0 = mute, 100 = the motors vibrate by a full step). gap: silence in ms at the
+    end of each note (0 = notes tied together). Applies to the notes not sent yet."""
+    self.volume = max(0, min(100, volume))
+    if gap is not None:
+      self.note_gap = max(0, min(255, int(gap)))
+    if self._ready and self._sound:
+      self._send_sound()
+
+  def set_tempo(self, bpm):
+    """Default tempo of play(), in beats (quarter notes) per minute."""
+    self.tempo = max(1, bpm)
+
+  def tone(self, frequency, duration, wait=True):
+    """Play a frequency in Hz (0 = silence) for duration ms."""
+    self.play(((frequency, duration),), wait=wait)
+
+  def note(self, note, duration, wait=True):
+    """Play a note for duration ms: a name like 'C4', 'F#5', 'Bb3' (A4 = 440Hz), or a MIDI number."""
+    self.tone(self._note_frequency(note), duration, wait)
+
+  def play(self, tune, tempo=None, wait=True):
+    """Play a tune: RTTTL text ('name:d=4,o=5,b=120:8e5,8d#5,4e5.,p,...', or just the notes),
+    or a list of (frequency Hz, duration ms). The board buffers 63 notes: longer tunes keep this
+    call busy until the rest fits, even with wait=False. Moves can run during the music."""
+    if isinstance(tune, str):
+      tune = self._parse_rtttl(tune, tempo)
+    self._stream(tune)
+    if wait:
+      self.wait_sound()
+
+  def stop_sound(self):
+    """Stop the music now and drop the notes not played yet."""
+    self._check_sound()
+    self._command(_CMD_SOUND_STOP)
+
+  def playing(self):
+    """True while notes are playing or waiting to play."""
+    return bool(self._sound_status()[0] & 0x01)
+
+  def wait_sound(self, timeout=None):
+    """Wait for the music to end. Returns False on timeout (ms)."""
+    start = time.ticks_ms()
+    while self.playing():
+      if timeout is not None and time.ticks_diff(time.ticks_ms(), start) >= timeout:
+        return False
+      time.sleep_ms(_POLL_MS)
+    return True
+
   # ---------------------------------------------------------------- Text commands
 
   def spinFromText(self, command_text):
@@ -400,6 +466,113 @@ class Motors:
     accel = round(self.acceleration * self._steps_per_mm())
     self._command(_CMD_SET_ACCELERATION, struct.pack('<I', accel))
 
+  def _send_sound(self):
+    swing = max(1, round(self.volume * 256 / 100)) # 1/256 full step
+    self._command(_CMD_SET_SOUND, struct.pack('<HB', swing, self.note_gap))
+
+  def _check_sound(self):
+    self._setup()
+    if not self._sound:
+      raise OSError("StepBot: the board firmware has no sound, update it")
+
+  def _sound_status(self):
+    self._check_sound()
+    b = self._query(_CMD_GET_SOUND, 2)
+    if not b[0] & _ST_VALID:
+      raise OSError("StepBot: invalid sound status")
+    return b
+
+  def _stream(self, tune):
+    self._check_sound()
+    notes = []
+    for frequency, duration in tune:
+      ms = min(65535, round(duration))
+      if ms > 0:
+        pitch = 0 if self.volume == 0 else max(0, min(_MAX_PITCH, round(frequency * 8)))
+        notes.append(struct.pack('<HH', pitch, ms))
+    i = 0
+    while i < len(notes):
+      room = self._sound_status()[1]
+      if room == 0:
+        time.sleep_ms(20)
+        continue
+      while room and i < len(notes):
+        n = min(3, room, len(notes) - i)
+        self._command(_CMD_NOTES, b''.join(notes[i:i + n]) + bytes(4 * (3 - n)))
+        i += n
+        room -= n
+
+  def _note_frequency(self, note):
+    if isinstance(note, str):
+      name = note.strip().lower()
+      if not name or name[0] not in _SEMITONES:
+        raise ValueError("StepBot: bad note %r" % note)
+      semitone = _SEMITONES[name[0]]
+      rest = name[1:]
+      if rest[:1] == '#':
+        semitone += 1
+        rest = rest[1:]
+      elif rest[:1] == 'b':
+        semitone -= 1
+        rest = rest[1:]
+      try:
+        octave = int(rest) if rest else 4
+      except ValueError:
+        raise ValueError("StepBot: bad note %r" % note)
+      note = 12 * (octave + 1) + semitone
+    return 440 * 2 ** ((note - 69) / 12)
+
+  def _parse_rtttl(self, text, tempo):
+    length, octave, bpm = 4, 5, self.tempo
+    parts = text.split(':')
+    if len(parts) >= 3:
+      for setting in parts[1].split(','):
+        kv = setting.split('=')
+        if len(kv) != 2:
+          continue
+        key, value = kv[0].strip().lower(), int(kv[1])
+        if key == 'd':
+          length = value
+        elif key == 'o':
+          octave = value
+        elif key == 'b':
+          bpm = value
+    if tempo is not None:
+      bpm = tempo
+    whole = 240000 / bpm # ms
+    notes = []
+    for token in parts[-1].split(','):
+      t = token.strip().lower()
+      if not t:
+        continue
+      i = 0
+      while i < len(t) and t[i].isdigit():
+        i += 1
+      duration = whole / (int(t[:i]) if i else length)
+      if t[i:i + 1] == '.': # some tunes put the dot before the note
+        duration *= 1.5
+        i += 1
+      if i == len(t) or (t[i] not in _SEMITONES and t[i] != 'p'):
+        raise ValueError("StepBot: bad note %r" % token)
+      letter = t[i]
+      rest = t[i + 1:]
+      sharp = rest[:1] == '#'
+      if sharp:
+        rest = rest[1:]
+      if '.' in rest:
+        duration *= 1.5
+        rest = rest.replace('.', '')
+      if letter == 'p':
+        notes.append((0, duration))
+        continue
+      try:
+        scale = int(rest) if rest else octave
+      except ValueError:
+        raise ValueError("StepBot: bad note %r" % token)
+      midi = 12 * (scale + 1) + _SEMITONES[letter] + sharp
+      notes.append((440 * 2 ** ((midi - 69) / 12), duration))
+    return notes
+
   def _send_current(self):
     run = round(self.run_current * 255 / 100)
     hold = round(self.hold_current * 255 / 100)
@@ -423,10 +596,13 @@ class Motors:
       if b[0] != 0x53 or b[1] != 0x42: # 'SB'
         raise OSError("StepBot: not a stepper motor board")
       self.max_step_rate = self._max_rate(b)
+      self._sound = b[2] >= 3 and bool(b[3] & _FEATURE_SOUND)
       self._send_microsteps()
       self._send_acceleration()
       self._send_current()
       self._command(_CMD_SET_TIMEOUT, struct.pack('<H', self.timeout))
+      if self._sound:
+        self._send_sound()
     except:
       self._ready = False
       raise

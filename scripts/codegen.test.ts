@@ -38,6 +38,7 @@ import { plugin as servo } from "../plugins/core-servo/index";
 import { plugin as functions } from "../plugins/core-functions/index";
 import { plugin as stepbotMotors } from "../boards/stepbot/plugins/motors/index";
 import { plugin as stepbotLed } from "../boards/stepbot/plugins/led/index";
+import { plugin as stepbotSound } from "../boards/stepbot/plugins/sound/index";
 import { registerFieldColour } from "@blockly/field-colour/src/field_colour";
 import board from "../boards/esp32-c3/esp32-c3.json";
 import stepbotBoard from "../boards/stepbot/stepbot.json";
@@ -57,7 +58,7 @@ const gens = new Map<string, BlockGenerator | ValueGenerator>();
 const noneTokens: Record<string, number[]> = {
   $BOARD_OUTPUT_PINS_OR_NONE: (board as any).pins.digital,
 };
-for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper, servo, stepbotMotors, stepbotLed]) {
+for (const p of [control, gpio, logic, math, text, variables, functions, motors, ble, neopixel, sensors, stepper, servo, stepbotMotors, stepbotLed, stepbotSound]) {
   for (const [type, def] of Object.entries(p.blocks)) {
     if (!def.builtin) {
       // builtin blocks (Blockly's procedure call/if-return) keep their own defs
@@ -1394,6 +1395,67 @@ const fnGen = functions.generators as Record<string, any>;
   }
   console.log(bad.length ? `✗ example files not loadable: ${bad.join(", ")}` : "✓ example files are loadable workspace states");
   if (bad.length) failures++;
+}
+
+// --- Test 51: StepBot sound, SIMPLE mode (the driver's own waits) ---
+{
+  const w = ws();
+  const hat = w.newBlock("when_started");
+  const txt = (t: string) => {
+    const b = w.newBlock("text_literal");
+    b.setFieldValue(t, "TEXT");
+    return b;
+  };
+  const vol = w.newBlock("stepbot_set_volume");
+  plug(vol, "VOLUME", num(w, 60));
+  plug(vol, "GAP", num(w, 10));
+  const name = w.newBlock("stepbot_play_note");
+  plug(name, "NOTE", txt("C#5"));
+  plug(name, "MS", num(w, 250));
+  const midi = w.newBlock("stepbot_play_note");
+  plug(midi, "NOTE", txt("60"));
+  plug(midi, "MS", num(w, 100));
+  const tune = w.newBlock("stepbot_play_tune");
+  tune.setFieldValue("0", "WAIT");
+  plug(tune, "TUNE", txt("tune:d=8,o=6,b=160:g5,c"));
+  const drive = w.newBlock("stepbot_move");
+  plug(drive, "DIST", num(w, 300));
+  const waitSound = w.newBlock("stepbot_wait_sound");
+  const stop = w.newBlock("stepbot_stop_sound");
+  connectChain(hat, vol, name, midi, tune, drive, waitSound, stop);
+  const r = cg().generate(w);
+  expect(
+    "stepbot: sound in simple mode",
+    r.code,
+    [
+      "stepbot.motors.set_volume(60, gap=10)",
+      'stepbot.motors.note("C#5", 250)',
+      "stepbot.motors.note(60, 100)",
+      'stepbot.motors.play("tune:d=8,o=6,b=160:g5,c", wait=False)',
+      "stepbot.motors.move(300)",
+      "stepbot.motors.wait_sound()",
+      "stepbot.motors.stop_sound()",
+    ],
+    ["sched", "yield"]
+  );
+}
+
+// --- Test 52: StepBot "play … and wait" polls playing() under the scheduler ---
+{
+  const w = ws();
+  for (const _ of [0, 1]) {
+    const hat = w.newBlock("when_started");
+    const t = w.newBlock("stepbot_play_tone");
+    plug(t, "HZ", num(w, 440));
+    plug(t, "MS", num(w, 500));
+    connectChain(hat, t);
+  }
+  expect(
+    "stepbot: sound waits yield in scheduler mode",
+    cg().generate(w).code,
+    ["stepbot.motors.tone(440, 500, wait=False)", "while stepbot.motors.playing():", "yield from sched.sleep_ms(10)"],
+    ["wait_sound()"]
+  );
 }
 
 console.log(failures === 0 ? "\nALL PASS" : `\n${failures} FAILURE(S)`);
