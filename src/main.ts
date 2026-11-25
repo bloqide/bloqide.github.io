@@ -30,6 +30,7 @@ import { TerminalPanel } from "./ui/terminal";
 import { initLibrary } from "./ui/library";
 import { initBoardPicker } from "./ui/boardPicker";
 import { initExamplesPicker } from "./ui/examplesPicker";
+import { initAppStatus } from "./ui/appStatus";
 import { highlightPython, highlightCode } from "./ui/highlight";
 import { setTextAreaResizeHandler } from "./ui/fieldTextArea";
 import { projectStore } from "./project/store";
@@ -905,11 +906,12 @@ function persistTabs(): void {
   localStorage.setItem(LAST_OPEN_KEY, current.id);
 }
 
-// Offset the tab strip so tabs line up with the left edge of the canvas
-// (i.e. past the toolbox category rail).
+// Size the app-status slot (install/update/version) to the toolbox category
+// rail, so the tabs line up with the left edge of the canvas.
+const appStatusEl = document.getElementById("app-status")!;
 function alignTabbar(): void {
   const toolbox = document.querySelector<HTMLElement>(".blocklyToolbox, .blocklyToolboxDiv");
-  tabbar.style.paddingLeft = `${(toolbox?.offsetWidth ?? 0) + 8}px`;
+  appStatusEl.style.width = `${toolbox?.offsetWidth ?? 0}px`;
 }
 
 function renderTabs(): void {
@@ -1029,6 +1031,8 @@ nameEl.addEventListener("click", () => {
     autosave();
   }
 });
+
+initAppStatus({ beforeRestart: () => autosave() });
 
 // ---- Boot: reopen previously open tabs, else start fresh ----
 async function boot(): Promise<void> {

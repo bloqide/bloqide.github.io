@@ -16,16 +16,41 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+// Build stamp shown in the UI so users can tell whether they're on the latest
+// deploy. A date code (YYMMDD, UTC — the deploy runs on GitHub Actions) is all
+// that matters to users; the short commit hash goes in the tooltip.
+const now = new Date();
+const pad = (n: number) => String(n).padStart(2, "0");
+const BUILD_DATE = `${pad(now.getUTCFullYear() % 100)}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`;
+let BUILD_COMMIT = "";
+try {
+  BUILD_COMMIT = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+    .toString()
+    .trim();
+} catch {
+  /* not a git checkout: date code only */
+}
 
 // Fully offline after first load: precache the app shell + all bundled assets.
 // Everything (Blockly, xterm, board JSON, plugins, runtime .py) is bundled — no CDN.
 export default defineConfig({
   base: "./",
+  define: {
+    __BUILD_DATE__: JSON.stringify(BUILD_DATE),
+    __BUILD_TIME__: JSON.stringify(now.toISOString()),
+    __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+  },
   plugins: [
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt": a downloaded update waits until the user restarts via the
+      // Update button (src/ui/appStatus.ts), instead of swapping the code under
+      // a running session with open serial connections.
+      registerType: "prompt",
+      injectRegister: false, // registered from appStatus.ts via virtual:pwa-register
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,json,py,woff2}"],
       },

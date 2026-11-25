@@ -60,8 +60,15 @@
         </div>
       </header>
 
-      <!-- Open project tabs -->
-      <nav id="tabbar"></nav>
+      <!-- App status (under the logo) + open project tabs -->
+      <div id="tabstrip">
+        <div id="app-status">
+          <button id="btn-update" class="hidden" title="A new version of Bloq is ready"><i class="fa-solid fa-rotate"></i> Update</button>
+          <button id="btn-install" class="hidden" title="Install Bloq as an app (works offline, opens in its own window)"><i class="fa-solid fa-circle-down"></i> Install</button>
+          <span id="app-version"></span>
+        </div>
+        <nav id="tabbar"></nav>
+      </div>
 
       <!-- Main work area -->
       <main id="work">
@@ -125,6 +132,22 @@
       <div class="examples-grid"></div>
       <div class="dialog-foot">
         <button data-act="close">Close</button>
+      </div>
+    </dialog>
+
+    <!-- Update ready -->
+    <dialog id="update-dialog">
+      <div class="dialog-head">
+        <strong>Update available</strong>
+        <button data-act="close">×</button>
+      </div>
+      <div class="dialog-body">
+        <p>A new version of Bloq has been downloaded. Restart now to use it?</p>
+        <p class="dialog-note">Your projects are saved first. Connected devices will be disconnected and need reconnecting after the restart.</p>
+      </div>
+      <div class="dialog-foot">
+        <button data-act="close">Later</button>
+        <button data-act="restart" class="primary"><i class="fa-solid fa-rotate"></i> Restart now</button>
       </div>
     </dialog>
 
