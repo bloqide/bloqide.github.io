@@ -87,6 +87,7 @@ Blockly.blockRendering.register("bloq-zelos", BloqRenderer);
 const WORKSPACE_START_SCALE = 0.9;
 const workspace = Blockly.inject("blockly", {
   toolbox: buildToolbox(board),
+  media: "./blockly-media/", // bundled copy (vite.config.ts) — the default is a remote CDN
   renderer: "bloq-zelos",
   grid: { spacing: 24, length: 3, colour: "#313244", snap: true },
   zoom: { controls: true, wheel: true, startScale: WORKSPACE_START_SCALE, maxScale: 3, minScale: 0.3 },

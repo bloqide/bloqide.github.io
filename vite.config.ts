@@ -17,7 +17,9 @@
  */
 
 import { execSync } from "node:child_process";
-import { defineConfig } from "vite";
+import { readdirSync, readFileSync } from "node:fs";
+import { extname, join } from "node:path";
+import { defineConfig, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Build stamp shown in the UI so users can tell whether they're on the latest
@@ -35,6 +37,45 @@ try {
   /* not a git checkout: date code only */
 }
 
+// Blockly's media (zoom/trash sprites, cursors, sounds). Without a `media`
+// option Blockly hot-links blockly-demo.appspot.com, which serves the *latest*
+// release's sprite sheet — mismatched with our pinned version (garbled zoom /
+// trash icons) and unavailable offline. Serve the copy matching the installed
+// package at ./blockly-media/ instead (dev: middleware; build: emitted assets).
+const BLOCKLY_MEDIA_DIR = "node_modules/blockly/media";
+const BLOCKLY_MEDIA_URL = "blockly-media/";
+const MEDIA_TYPES: Record<string, string> = {
+  ".png": "image/png", ".svg": "image/svg+xml", ".gif": "image/gif",
+  ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".cur": "image/x-icon",
+};
+function blocklyMedia(): Plugin {
+  return {
+    name: "bloq-blockly-media",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const m = req.url?.match(/\/blockly-media\/([\w.-]+)$/);
+        if (!m) return next();
+        try {
+          const data = readFileSync(join(BLOCKLY_MEDIA_DIR, m[1]));
+          res.setHeader("Content-Type", MEDIA_TYPES[extname(m[1])] ?? "application/octet-stream");
+          res.end(data);
+        } catch {
+          next();
+        }
+      });
+    },
+    generateBundle() {
+      for (const f of readdirSync(BLOCKLY_MEDIA_DIR)) {
+        this.emitFile({
+          type: "asset",
+          fileName: BLOCKLY_MEDIA_URL + f,
+          source: readFileSync(join(BLOCKLY_MEDIA_DIR, f)),
+        });
+      }
+    },
+  };
+}
+
 // Fully offline after first load: precache the app shell + all bundled assets.
 // Everything (Blockly, xterm, board JSON, plugins, runtime .py) is bundled — no CDN.
 export default defineConfig({
@@ -45,6 +86,7 @@ export default defineConfig({
     __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
   },
   plugins: [
+    blocklyMedia(),
     VitePWA({
       // "prompt": a downloaded update waits until the user restarts via the
       // Update button (src/ui/appStatus.ts), instead of swapping the code under
@@ -52,7 +94,7 @@ export default defineConfig({
       registerType: "prompt",
       injectRegister: false, // registered from appStatus.ts via virtual:pwa-register
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,json,py,woff2}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,json,py,woff2,gif,cur,mp3}"],
       },
       manifest: {
         name: "Bloq",
