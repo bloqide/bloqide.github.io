@@ -97,6 +97,14 @@ const workspace = Blockly.inject("blockly", {
 });
 bindToolbox(workspace); // "More blocks" flyout buttons
 
+// Double-click on empty canvas closes the pinned-open block flyout (deselects
+// the toolbox category). Only the workspace background counts — not blocks,
+// the flyout itself, the toolbox or the zoom/trash controls.
+document.getElementById("blockly")!.addEventListener("dblclick", (e) => {
+  if (!(e.target as Element).classList?.contains("blocklyMainBackground")) return;
+  workspace.getToolbox()?.clearSelection();
+});
+
 // Keep the block flyout pinned open (don't auto-close after dragging a block).
 const flyout = workspace.getFlyout();
 if (flyout) (flyout as unknown as { autoClose: boolean }).autoClose = false;
